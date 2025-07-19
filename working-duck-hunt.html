@@ -80,6 +80,41 @@
             cursor: pointer;
             margin: 5px;
             font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .permission-panel {
+            background: linear-gradient(135deg, rgba(255, 235, 59, 0.1), rgba(255, 193, 7, 0.1));
+            border: 1px solid rgba(255, 235, 59, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Camera video background */
@@ -133,9 +168,25 @@
             <p id="status">Click "Start Experience" to begin!</p>
             <p id="huntHint" style="font-size: 14px; margin-top: 10px; color: #ffeb3b; display: none;"></p>
 
+            <!-- Motion Permission Explanation Panel -->
+            <div id="motionExplanation" class="permission-panel" style="display: none;">
+                <h4 style="margin: 0 0 10px 0; color: #ffeb3b;">🎯 Enhanced AR Experience</h4>
+                <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.4;">
+                    For the best duck hunting experience, we need access to your device's motion sensors.
+                    This allows you to look around naturally by moving your device to find ducks in AR space.
+                </p>
+                <p style="margin: 0 0 15px 0; font-size: 12px; color: #ccc;">
+                    Your privacy is protected - motion data stays on your device and is only used for AR positioning.
+                </p>
+                <button class="button" onclick="requestMotionPermissions()"
+                    style="background: #ffeb3b; color: #000;">Allow Motion Access</button>
+                <button class="button" onclick="hideMotionExplanation()" style="background: rgba(255,255,255,0.2);">Skip
+                    (Manual Mode)</button>
+            </div>
+
             <button class="button" onclick="startARHunt()" id="startBtn">Start Experience</button>
-            <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable
-                Motion Sensors</button>
+            <button class="button" onclick="showMotionPermissionExplanation()" id="permissionBtn"
+                style="display:none;">Enable Motion Sensors</button>
             <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable
                 Camera</button>
             <button class="button" onclick="generateAnotherDuck()" id="generateBtn" style="display:none;">Generate
@@ -462,14 +513,31 @@
             return isIOSDevice;
         }
 
+        function showMotionPermissionExplanation() {
+            // Show the styled explanation panel instead of immediately requesting
+            document.getElementById('motionExplanation').style.display = 'block';
+            document.getElementById('permissionBtn').style.display = 'none';
+            document.getElementById('status').textContent = 'Motion sensors will enhance your AR experience!';
+        }
+
+        function hideMotionExplanation() {
+            // Hide explanation and continue without motion sensors
+            document.getElementById('motionExplanation').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('status').textContent = 'Ready to start! Motion sensors disabled - you can use touch controls.';
+            motionPermissionStatus = 'denied';
+        }
+
         async function requestMotionPermissions() {
             console.log('Requesting motion sensor permissions...');
 
             try {
-                // Update UI to show requesting state
-                document.getElementById('status').textContent = 'Requesting motion sensor permissions...';
-                document.getElementById('permissionBtn').textContent = 'Requesting...';
-                document.getElementById('permissionBtn').disabled = true;
+                // Hide explanation panel and update UI
+                document.getElementById('motionExplanation').style.display = 'none';
+                document.getElementById('status').textContent = 'Please allow motion sensor access in the browser prompt...';
+
+                // Add a small delay to let the user see the message
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Request DeviceOrientationEvent permission
                 let orientationPermission = 'granted';
@@ -505,15 +573,15 @@
         function handlePermissionGranted() {
             console.log('Motion sensor permissions granted');
 
-            // Update UI
-            document.getElementById('status').textContent = '✅ Motion sensors enabled! You can now start the experience.';
+            // Update UI with success styling
+            document.getElementById('status').innerHTML = '✅ <strong>Motion sensors enabled!</strong> You can now start the enhanced AR experience.';
             document.getElementById('permissionBtn').style.display = 'none';
             document.getElementById('startBtn').style.display = 'inline-block';
 
-            // Show success message briefly
+            // Show success message briefly with enhanced styling
             setTimeout(() => {
                 if (!arActive) {
-                    document.getElementById('status').textContent = 'Motion sensors ready! Click "Start Experience" to begin.';
+                    document.getElementById('status').textContent = '🎯 Ready for AR Duck Hunt! Click "Start Experience" to begin.';
                 }
             }, 3000);
         }
@@ -521,22 +589,20 @@
         function handlePermissionDenied() {
             console.log('Motion sensor permissions denied');
 
-            // Update UI with clear explanation and retry option
+            // Update UI with styled explanation
             document.getElementById('status').innerHTML =
-                '❌ Motion sensor access denied.<br>' +
-                'For the best AR experience, please:<br>' +
-                '1. Go to Settings > Safari > Motion & Orientation Access<br>' +
-                '2. Enable motion sensors for this website<br>' +
-                '3. Refresh the page and try again';
+                '⚠️ <strong>Motion sensors not available</strong><br>' +
+                'You can still enjoy the duck hunt using touch controls to look around!';
 
-            // Re-enable and update permission button
-            document.getElementById('permissionBtn').textContent = 'Retry Motion Permissions';
+            // Show retry option with better styling
+            document.getElementById('permissionBtn').textContent = 'Try Motion Sensors Again';
             document.getElementById('permissionBtn').disabled = false;
             document.getElementById('permissionBtn').style.display = 'inline-block';
+            document.getElementById('permissionBtn').style.background = 'rgba(255, 235, 59, 0.3)';
 
-            // Also show start button for fallback mode
+            // Show start button for manual mode
             document.getElementById('startBtn').style.display = 'inline-block';
-            document.getElementById('startBtn').textContent = 'Start Without Motion';
+            document.getElementById('startBtn').textContent = 'Start Experience (Touch Mode)';
         }
 
         function handlePermissionError(error) {
@@ -559,15 +625,18 @@
         function checkMotionPermissionStatus() {
             // This function checks if we need to show permission UI on page load
             if (detectIOSDevice()) {
-                // iOS 13+ device detected, show permission button
-                document.getElementById('status').textContent =
-                    '📱 iOS device detected. Motion sensor permissions required for AR tracking.';
+                // iOS 13+ device detected, show styled permission explanation
+                document.getElementById('status').innerHTML =
+                    '🎯 <strong>Enhanced AR Available!</strong><br>Enable motion sensors for the best duck hunting experience.';
                 document.getElementById('startBtn').style.display = 'none';
                 document.getElementById('permissionBtn').style.display = 'inline-block';
+                document.getElementById('permissionBtn').style.background = '#ffeb3b';
+                document.getElementById('permissionBtn').style.color = '#000';
                 return false; // Don't allow starting without permissions
             } else {
                 // Non-iOS or older iOS, permissions not required
                 motionPermissionStatus = 'not-required';
+                document.getElementById('status').textContent = '🦆 Ready for Duck Hunt! Click "Start Experience" to begin.';
                 return true; // Allow starting immediately
             }
         }
@@ -597,7 +666,7 @@
             // Much more random positioning with varied distances and heights
             const duckType = Math.random();
             let distance, height, scale, glowRadius;
-            
+
             if (duckType < 0.3) {
                 // Close ducks (30% chance) - Easy targets
                 distance = 1.5 + Math.random() * 2.5; // 1.5-4 meters
@@ -617,10 +686,10 @@
                 scale = 0.1 + Math.random() * 0.15; // 0.1-0.25 scale (tiny!)
                 glowRadius = 1 + Math.random() * 0.5; // Smaller glow
             }
-            
+
             // Random angle with some clustering to avoid too much spread
             const angle = Math.random() * Math.PI * 2; // Full 360 degrees
-            
+
             // Add some vertical randomness to make positioning more interesting
             const verticalVariation = (Math.random() - 0.5) * 2; // -1 to +1 meter variation
             height += verticalVariation;
@@ -636,19 +705,19 @@
             // Set position in world coordinates
             duck.setAttribute('position', `${x} ${y} ${z}`);
             duck.setAttribute('scale', `${scale} ${scale} ${scale}`);
-            
+
             // Vary animation speeds based on distance (far ducks move slower)
             const rotationSpeed = 4000 + Math.random() * 4000; // 4-8 seconds
             const floatSpeed = 2000 + Math.random() * 3000; // 2-5 seconds
             const floatAmount = 0.1 + Math.random() * 0.3; // Variable float distance
-            
+
             duck.setAttribute('animation', `property: rotation; to: 0 360 0; loop: true; dur: ${rotationSpeed}`);
             duck.setAttribute('animation__float', `property: position; to: ${x} ${y + floatAmount} ${z}; dir: alternate; loop: true; dur: ${floatSpeed}; easing: easeInOutSine`);
 
             // Duck components with variable visibility based on distance
             const bodyColor = distance > 10 ? "#ffff00" : "#ffeb3b"; // Far ducks are more golden
             const glowOpacity = Math.max(0.15, 0.4 - (distance / 30)); // Dimmer glow for far ducks
-            
+
             duck.innerHTML = `
                 <a-sphere color="${bodyColor}" radius="1" position="0 0 0" scale="1 0.8 1.2"></a-sphere>
                 <a-sphere color="${bodyColor}" radius="0.6" position="0 0.7 0.3"></a-sphere>
@@ -700,7 +769,7 @@
             // More precise direction hints
             const angle = Math.atan2(x, -z) * 180 / Math.PI; // Convert to degrees
             const normalizedAngle = (angle + 360) % 360;
-            
+
             if (normalizedAngle < 22.5 || normalizedAngle >= 337.5) {
                 direction = "directly in front of you";
             } else if (normalizedAngle < 67.5) {
