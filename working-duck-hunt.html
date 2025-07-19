@@ -38,12 +38,12 @@
             margin: 5px;
             font-size: 16px;
         }
-        
+
         /* Make A-Frame canvas transparent */
         #arScene canvas {
             background: transparent !important;
         }
-        
+
         #arScene {
             background: transparent !important;
         }
@@ -71,22 +71,22 @@
 
     <!-- A-Frame Scene -->
     <a-scene id="arScene" background="color: #87CEEB" fog="type: linear; color: #87CEEB; near: 10; far: 100"></a-scene>
-        <!-- Camera with look controls -->
-        <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
-            wasd-controls="enabled: false" position="0 1.6 0">
-        </a-camera>
+    <!-- Camera with look controls -->
+    <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
+        wasd-controls="enabled: false" position="0 1.6 0">
+    </a-camera>
 
-        <!-- Ground plane for reference -->
-        <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.8"></a-plane>
-        
-        <!-- Sky -->
-        <a-sky color="#87CEEB"></a-sky>
+    <!-- Ground plane for reference -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.8"></a-plane>
 
-        <!-- No default duck - spawn them manually -->
+    <!-- Sky -->
+    <a-sky color="#87CEEB"></a-sky>
 
-        <!-- Lighting -->
-        <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
-        <a-light type="directional" position="0 10 0" color="#ffffff" intensity="0.8"></a-light>
+    <!-- No default duck - spawn them manually -->
+
+    <!-- Lighting -->
+    <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
+    <a-light type="directional" position="0 10 0" color="#ffffff" intensity="0.8"></a-light>
     </a-scene>
 
     <script>
@@ -246,64 +246,35 @@
             document.getElementById('status').textContent = 'All ducks cleared! Spawn new ones to hunt.';
         }
 
-        async function startARHunt() {
-            try {
-                document.getElementById('status').textContent = 'Starting camera...';
+        function startARHunt() {
+            // Show A-Frame scene
+            document.getElementById('arScene').style.display = 'block';
 
-                // Get camera stream
-                videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    }
-                });
+            // Show controls
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('spawnBtn').style.display = 'inline-block';
+            document.getElementById('clearBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'inline-block';
+            document.getElementById('testButtons').style.display = 'block';
 
-                // Show video background
-                const video = document.getElementById('videoBackground');
-                video.srcObject = videoStream;
-                video.style.display = 'block';
+            arActive = true;
+            document.getElementById('status').textContent = '🦆 Duck Hunt Active! Spawn ducks and turn around to find them!';
 
-                // Show A-Frame scene
-                document.getElementById('arScene').style.display = 'block';
-
-                // Show AR controls
-                document.getElementById('startBtn').style.display = 'none';
-                document.getElementById('spawnBtn').style.display = 'inline-block';
-                document.getElementById('clearBtn').style.display = 'inline-block';
-                document.getElementById('stopBtn').style.display = 'inline-block';
-                document.getElementById('testButtons').style.display = 'block';
-
-                arActive = true;
-                document.getElementById('status').textContent = '🦆 AR Duck Hunt Active! Spawn ducks and turn around to find them in the real world!';
-
-                // Auto-spawn first duck after 3 seconds
-                setTimeout(() => {
-                    if (arActive) {
-                        spawnDuck();
-                    }
-                }, 3000);
-
-            } catch (error) {
-                console.error('Camera error:', error);
-                document.getElementById('status').textContent = 'Camera access failed: ' + error.message;
-            }
+            // Auto-spawn first duck after 2 seconds
+            setTimeout(() => {
+                if (arActive) {
+                    spawnDuck();
+                }
+            }, 2000);
         }
 
         function stopARHunt() {
             arActive = false;
 
-            // Stop video stream
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
-            }
-
             // Clear ducks
             clearDucks();
 
-            // Hide video and scene
-            document.getElementById('videoBackground').style.display = 'none';
+            // Hide scene
             document.getElementById('arScene').style.display = 'none';
 
             // Show start controls
@@ -313,7 +284,7 @@
             document.getElementById('stopBtn').style.display = 'none';
             document.getElementById('testButtons').style.display = 'none';
 
-            document.getElementById('status').textContent = 'AR Hunt stopped. Click "Start AR Hunt" to begin again.';
+            document.getElementById('status').textContent = 'Duck Hunt stopped. Click "Start AR Hunt" to begin again.';
         }
 
         // No auto-spawn - user controls when to spawn ducks
