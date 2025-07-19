@@ -14,7 +14,7 @@
   - Handle permission granted/denied states with appropriate user feedback
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 3. Add orientation smoothing to prevent camera jitter
+- [x] 3. Add orientation smoothing to prevent camera jitter
   - Implement smoothing algorithm to interpolate between orientation values
   - Add configurable smoothing factor for different device sensitivities
   - Apply smoothing to camera rotation updates to ensure fluid movement

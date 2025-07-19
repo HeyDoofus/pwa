@@ -63,6 +63,13 @@
         <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
         <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop AR</button>
         <br>
+        <div id="smoothingControls" style="display:none; margin: 10px 0;">
+            <label style="font-size: 12px;">Camera Smoothing:</label>
+            <button class="button" onclick="setSmoothingFactor(0.9)" style="font-size: 12px; padding: 5px 10px;">High</button>
+            <button class="button" onclick="setSmoothingFactor(0.8)" style="font-size: 12px; padding: 5px 10px;">Medium</button>
+            <button class="button" onclick="setSmoothingFactor(0.6)" style="font-size: 12px; padding: 5px 10px;">Low</button>
+            <button class="button" onclick="setSmoothingFactor(0.0)" style="font-size: 12px; padding: 5px 10px;">Off</button>
+        </div>
         <div id="testButtons" style="display:none;">
             <button class="button" onclick="testDirection('FRONT')">Test FRONT</button>
             <button class="button" onclick="testDirection('BACK')">Test BACK</button>
@@ -70,6 +77,7 @@
             <button class="button" onclick="testDirection('RIGHT')">Test RIGHT</button>
             <br>
             <button class="button" onclick="testOrientation()">Test Orientation</button>
+            <button class="button" onclick="testSmoothingTransition()">Test Smoothing</button>
         </div>
     </div>
 
@@ -102,7 +110,13 @@
         // Device orientation tracking variables
         let orientationActive = false;
         let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
+        let smoothedOrientation = { alpha: 0, beta: 0, gamma: 0 };
         let camera = null;
+        
+        // Orientation smoothing configuration
+        let smoothingFactor = 0.8; // Higher values = more smoothing (0.0 to 1.0)
+        let lastOrientationUpdate = 0;
+        let orientationUpdateThreshold = 16; // ~60fps (16ms between updates)
         
         // iOS permission handling variables
         let motionPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied', 'not-required'
@@ -397,6 +411,11 @@
             document.getElementById('clearBtn').style.display = 'inline-block';
             document.getElementById('stopBtn').style.display = 'inline-block';
             document.getElementById('testButtons').style.display = 'block';
+            
+            // Show smoothing controls if motion tracking is active
+            if (orientationActive) {
+                document.getElementById('smoothingControls').style.display = 'block';
+            }
 
             arActive = true;
             
@@ -461,11 +480,50 @@
             document.getElementById('clearBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'none';
             document.getElementById('testButtons').style.display = 'none';
+            document.getElementById('smoothingControls').style.display = 'none';
 
             document.getElementById('status').textContent = 'Duck Hunt stopped. Click "Start AR Hunt" to begin again.';
         }
 
         // No auto-spawn - user controls when to spawn ducks
+
+        // Orientation smoothing functions
+        function smoothValue(current, target, factor, isAlpha = false) {
+            // Handle angle wrapping for compass heading (alpha) which uses 0-360 range
+            if (isAlpha && Math.abs(target - current) > 180) {
+                if (target > current) {
+                    current += 360;
+                } else {
+                    target += 360;
+                }
+            }
+            
+            // Apply smoothing interpolation
+            const smoothed = current * factor + target * (1 - factor);
+            
+            // Normalize alpha angle to 0-360 range
+            if (isAlpha) {
+                return smoothed > 360 ? smoothed - 360 : (smoothed < 0 ? smoothed + 360 : smoothed);
+            }
+            
+            // For beta and gamma, keep in their natural ranges
+            return smoothed;
+        }
+        
+        function applySmoothingToOrientation(rawOrientation) {
+            // Apply smoothing to each orientation axis with appropriate handling
+            smoothedOrientation.alpha = smoothValue(smoothedOrientation.alpha, rawOrientation.alpha, smoothingFactor, true); // Alpha needs angle wrapping
+            smoothedOrientation.beta = smoothValue(smoothedOrientation.beta, rawOrientation.beta, smoothingFactor, false);
+            smoothedOrientation.gamma = smoothValue(smoothedOrientation.gamma, rawOrientation.gamma, smoothingFactor, false);
+            
+            return smoothedOrientation;
+        }
+        
+        function setSmoothingFactor(factor) {
+            // Clamp smoothing factor between 0.0 and 1.0
+            smoothingFactor = Math.max(0.0, Math.min(1.0, factor));
+            console.log(`Smoothing factor set to: ${smoothingFactor}`);
+        }
 
         // Device orientation functions
         function initializeDeviceOrientation() {
@@ -487,23 +545,39 @@
                 return false;
             }
             
+            // Initialize smoothed orientation to current values
+            smoothedOrientation = { alpha: 0, beta: 0, gamma: 0 };
+            lastOrientationUpdate = 0;
+            
             // Add device orientation event listener
             window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
             orientationActive = true;
             
-            console.log('Device orientation tracking initialized');
+            console.log(`Device orientation tracking initialized with smoothing factor: ${smoothingFactor}`);
             return true;
         }
         
         function handleDeviceOrientation(event) {
             if (!orientationActive || !camera) return;
             
-            // Store current orientation values
-            currentOrientation.alpha = event.alpha || 0;  // Compass heading (0-360°)
-            currentOrientation.beta = event.beta || 0;    // Front-back tilt (-180° to 180°)
-            currentOrientation.gamma = event.gamma || 0;  // Left-right tilt (-90° to 90°)
+            // Throttle orientation updates to prevent excessive processing
+            const now = Date.now();
+            if (now - lastOrientationUpdate < orientationUpdateThreshold) {
+                return;
+            }
+            lastOrientationUpdate = now;
             
-            // Convert orientation to A-Frame camera rotation
+            // Store raw orientation values
+            const rawOrientation = {
+                alpha: event.alpha || 0,  // Compass heading (0-360°)
+                beta: event.beta || 0,    // Front-back tilt (-180° to 180°)
+                gamma: event.gamma || 0   // Left-right tilt (-90° to 90°)
+            };
+            
+            // Apply smoothing to prevent jitter
+            currentOrientation = applySmoothingToOrientation(rawOrientation);
+            
+            // Convert smoothed orientation to A-Frame camera rotation
             updateCameraRotation();
         }
         
@@ -523,18 +597,20 @@
             // Z-axis rotation (roll) - left-right tilt
             const roll = -gamma; // Negative to match expected rotation direction
             
-            // Apply rotation to camera
-            camera.setAttribute('rotation', `${pitch} ${yaw} ${roll}`);
+            // Apply smoothed rotation to camera using requestAnimationFrame for smooth updates
+            requestAnimationFrame(() => {
+                camera.setAttribute('rotation', `${pitch} ${yaw} ${roll}`);
+            });
             
-            // Update debug display
+            // Update debug display with smoothing information
             const debugElement = document.getElementById('orientationDebug');
             if (debugElement && debugElement.style.display !== 'none') {
-                debugElement.textContent = `Orientation: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}° | Camera: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)}`;
+                debugElement.textContent = `Smoothed: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}° | Camera: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)} | Smooth: ${smoothingFactor.toFixed(2)}`;
             }
             
             // Debug logging (can be removed later)
             if (Math.random() < 0.01) { // Log only 1% of the time to avoid spam
-                console.log(`Orientation: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
+                console.log(`Smoothed Orientation: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
                 console.log(`Camera rotation: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)}`);
             }
         }
@@ -580,6 +656,57 @@
                 
                 testIndex++;
             }, 2000);
+        }
+        
+        function testSmoothingTransition() {
+            if (!camera) {
+                document.getElementById('status').textContent = 'Camera not found! Start AR Hunt first.';
+                return;
+            }
+            
+            document.getElementById('status').textContent = 'Testing smoothing transition - watch camera movement!';
+            
+            // Test rapid orientation changes to demonstrate smoothing
+            const rapidChanges = [
+                { alpha: 0, beta: 0, gamma: 0 },
+                { alpha: 90, beta: 0, gamma: 0 },
+                { alpha: 0, beta: 0, gamma: 0 },
+                { alpha: -90, beta: 0, gamma: 0 },
+                { alpha: 0, beta: 30, gamma: 0 },
+                { alpha: 0, beta: -30, gamma: 0 },
+                { alpha: 0, beta: 0, gamma: 0 }
+            ];
+            
+            let changeIndex = 0;
+            const changeInterval = setInterval(() => {
+                if (changeIndex >= rapidChanges.length) {
+                    clearInterval(changeInterval);
+                    document.getElementById('status').textContent = 'Smoothing test complete! Notice how smooth the camera movement was.';
+                    return;
+                }
+                
+                const change = rapidChanges[changeIndex];
+                
+                // Simulate rapid orientation change
+                const simulatedEvent = {
+                    alpha: change.alpha,
+                    beta: change.beta,
+                    gamma: change.gamma
+                };
+                
+                // Apply the change through the smoothing system
+                const rawOrientation = {
+                    alpha: simulatedEvent.alpha,
+                    beta: simulatedEvent.beta,
+                    gamma: simulatedEvent.gamma
+                };
+                
+                currentOrientation = applySmoothingToOrientation(rawOrientation);
+                updateCameraRotation();
+                
+                console.log(`Smoothing test ${changeIndex + 1}: Applied orientation ${change.alpha}°, ${change.beta}°, ${change.gamma}°`);
+                changeIndex++;
+            }, 500); // Rapid changes every 500ms
         }
 
         // Handle scene clicks
