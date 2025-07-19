@@ -215,6 +215,7 @@
                 <br>
                 <button class="button" onclick="testOrientation()">Test Orientation</button>
                 <button class="button" onclick="testSmoothingTransition()">Test Smoothing</button>
+                <button class="button" onclick="testPerformanceOptimizations()">Test Performance</button>
                 <button class="button" onclick="debugCameraAndDucks()">Debug Info</button>
             </div>
         </div>
@@ -1278,7 +1279,56 @@
             console.log('Current orientation:', currentOrientation);
             console.log('AR active:', arActive);
             console.log('Camera active:', cameraActive);
+            
+            // Performance debug info
+            console.log('=== PERFORMANCE INFO ===');
+            console.log('Device capabilities:', {
+                isLowEndDevice,
+                hardwareConcurrency: navigator.hardwareConcurrency,
+                deviceMemory: navigator.deviceMemory,
+                currentDeviceOrientation,
+                performanceMode,
+                targetFPS,
+                orientationUpdateThreshold,
+                smoothingFactor
+            });
+            
+            if (videoStream) {
+                const videoTrack = videoStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    console.log('Camera settings:', videoTrack.getSettings());
+                    console.log('Camera constraints:', videoTrack.getConstraints());
+                }
+            }
+            
             console.log('=== END DEBUG ===');
+        }
+
+        // Performance test function
+        function testPerformanceOptimizations() {
+            console.log('=== PERFORMANCE TEST ===');
+            
+            // Test device detection
+            console.log('1. Device Detection Test:');
+            detectDeviceCapabilities();
+            
+            // Test orientation handling
+            console.log('2. Orientation Handling Test:');
+            handleOrientationChange();
+            
+            // Test performance mode switching
+            console.log('3. Performance Mode Test:');
+            ['performance', 'auto', 'quality'].forEach(mode => {
+                setPerformanceMode(mode);
+                console.log(`Mode ${mode}: throttle=${orientationUpdateThreshold}ms, target=${targetFPS}fps`);
+            });
+            
+            // Test camera constraints optimization
+            console.log('4. Camera Constraints Test:');
+            const constraints = getOptimizedCameraConstraints();
+            console.log('Optimized constraints:', constraints);
+            
+            console.log('=== PERFORMANCE TEST COMPLETE ===');
         }
 
         // Orientation change handling
