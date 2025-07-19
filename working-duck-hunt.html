@@ -145,6 +145,11 @@
             try {
                 // Update UI to show requesting state
                 document.getElementById('status').textContent = 'Requesting camera access for AR...';
+                const cameraBtn = document.getElementById('cameraBtn');
+                if (cameraBtn.style.display !== 'none') {
+                    cameraBtn.textContent = 'Requesting...';
+                    cameraBtn.disabled = true;
+                }
                 
                 // Request camera access with rear camera preference
                 const constraints = {
@@ -165,6 +170,11 @@
                     cameraVideo.style.display = 'block';
                     cameraActive = true;
                     
+                    // Hide camera button on success
+                    cameraBtn.style.display = 'none';
+                    cameraBtn.disabled = false;
+                    
+                    document.getElementById('status').textContent = '✅ Camera access granted! AR experience ready.';
                     console.log('Camera access granted and video stream started');
                     return true;
                 } else {
@@ -174,6 +184,11 @@
             } catch (error) {
                 console.error('Camera access error:', error);
                 cameraPermissionStatus = 'denied';
+                
+                // Re-enable button on error
+                const cameraBtn = document.getElementById('cameraBtn');
+                cameraBtn.disabled = false;
+                
                 handleCameraError(error);
                 return false;
             }
@@ -244,6 +259,9 @@
                     cameraVideo.srcObject = videoStream;
                     cameraVideo.style.display = 'block';
                     cameraActive = true;
+                    
+                    // Hide camera button on success
+                    document.getElementById('cameraBtn').style.display = 'none';
                     
                     document.getElementById('status').textContent = '✅ Camera access granted with basic settings!';
                     console.log('Camera access granted with fallback constraints');
@@ -657,6 +675,13 @@
                 document.getElementById('startBtn').style.display = 'inline-block';
                 document.getElementById('startBtn').textContent = 'Start AR Hunt';
                 document.getElementById('permissionBtn').style.display = 'none';
+            }
+            
+            // Show camera button if camera access was denied
+            if (cameraPermissionStatus === 'denied') {
+                document.getElementById('cameraBtn').style.display = 'inline-block';
+            } else {
+                document.getElementById('cameraBtn').style.display = 'none';
             }
             
             document.getElementById('spawnBtn').style.display = 'none';
