@@ -417,52 +417,78 @@ class ARManager {
 
         console.log(`Creating duck entity ${duckId} at position:`, position);
 
-        // Create main duck container
+        // Create main duck container - MUCH smaller scale for realistic rubber duck size
         const duckEntity = document.createElement('a-entity');
         duckEntity.setAttribute('id', duckId);
         duckEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
-        duckEntity.setAttribute('scale', '0.5 0.5 0.5'); // Larger scale for visibility
-        duckEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 4000');
+        duckEntity.setAttribute('scale', '0.08 0.08 0.08'); // Much smaller - like a real rubber duck
+        duckEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 6000');
         duckEntity.setAttribute('visible', 'true');
         duckEntity.classList.add('collectible-duck');
 
-        // Duck body (main yellow box) - make it brighter and larger
-        const body = document.createElement('a-box');
+        // Duck body - rounded like a real rubber duck
+        const body = document.createElement('a-sphere');
         body.setAttribute('color', '#ffeb3b');
-        body.setAttribute('width', '1.2');
-        body.setAttribute('height', '0.8');
-        body.setAttribute('depth', '1.8');
-        body.setAttribute('material', 'color: #ffeb3b; metalness: 0.1; roughness: 0.7');
+        body.setAttribute('radius', '1');
+        body.setAttribute('position', '0 0 0');
+        body.setAttribute('scale', '1 0.8 1.2'); // Squash to make duck-like body shape
+        body.setAttribute('material', 'color: #ffeb3b; metalness: 0.2; roughness: 0.8');
         duckEntity.appendChild(body);
 
-        // Duck head (orange sphere) - make it more prominent
+        // Duck head - smaller sphere on top
         const head = document.createElement('a-sphere');
-        head.setAttribute('color', '#ff9800');
-        head.setAttribute('radius', '0.5');
-        head.setAttribute('position', '0.7 0.3 0.4');
-        head.setAttribute('material', 'color: #ff9800; metalness: 0.1; roughness: 0.7');
+        head.setAttribute('color', '#ffeb3b');
+        head.setAttribute('radius', '0.6');
+        head.setAttribute('position', '0 0.7 0.3');
+        head.setAttribute('material', 'color: #ffeb3b; metalness: 0.2; roughness: 0.8');
         duckEntity.appendChild(head);
 
-        // Duck beak (red cone)
+        // Duck beak - small orange triangle
         const beak = document.createElement('a-cone');
-        beak.setAttribute('color', '#ff5722');
+        beak.setAttribute('color', '#ff9800');
         beak.setAttribute('radius-bottom', '0.15');
         beak.setAttribute('radius-top', '0.05');
         beak.setAttribute('height', '0.3');
-        beak.setAttribute('position', '1.0 0.2 0.5');
+        beak.setAttribute('position', '0 0.7 0.8');
         beak.setAttribute('rotation', '90 0 0');
-        beak.setAttribute('material', 'color: #ff5722; metalness: 0.1; roughness: 0.7');
+        beak.setAttribute('material', 'color: #ff9800; metalness: 0.3; roughness: 0.7');
         duckEntity.appendChild(beak);
 
-        // Add a bright outline for visibility
-        const outline = document.createElement('a-box');
-        outline.setAttribute('color', '#ffffff');
-        outline.setAttribute('width', '1.3');
-        outline.setAttribute('height', '0.9');
-        outline.setAttribute('depth', '1.9');
-        outline.setAttribute('position', '0 0 0');
-        outline.setAttribute('material', 'color: #ffffff; opacity: 0.3; transparent: true');
-        duckEntity.appendChild(outline);
+        // Duck eyes - two small black spheres
+        const leftEye = document.createElement('a-sphere');
+        leftEye.setAttribute('color', '#000000');
+        leftEye.setAttribute('radius', '0.08');
+        leftEye.setAttribute('position', '-0.15 0.8 0.55');
+        leftEye.setAttribute('material', 'color: #000000; metalness: 0.8; roughness: 0.2');
+        duckEntity.appendChild(leftEye);
+
+        const rightEye = document.createElement('a-sphere');
+        rightEye.setAttribute('color', '#000000');
+        rightEye.setAttribute('radius', '0.08');
+        rightEye.setAttribute('position', '0.15 0.8 0.55');
+        rightEye.setAttribute('material', 'color: #000000; metalness: 0.8; roughness: 0.2');
+        duckEntity.appendChild(rightEye);
+
+        // Duck tail - small curved element
+        const tail = document.createElement('a-sphere');
+        tail.setAttribute('color', '#ffeb3b');
+        tail.setAttribute('radius', '0.2');
+        tail.setAttribute('position', '0 0.2 -1');
+        tail.setAttribute('scale', '0.8 1.2 0.6');
+        tail.setAttribute('material', 'color: #ffeb3b; metalness: 0.2; roughness: 0.8');
+        duckEntity.appendChild(tail);
+
+        // Subtle glow effect for visibility
+        const glow = document.createElement('a-sphere');
+        glow.setAttribute('color', '#ffff00');
+        glow.setAttribute('radius', '1.3');
+        glow.setAttribute('position', '0 0 0');
+        glow.setAttribute('material', 'color: #ffff00; opacity: 0.1; transparent: true');
+        duckEntity.appendChild(glow);
+
+        // Add floating animation
+        duckEntity.setAttribute('animation__float', 'property: position; to: ' + 
+            `${position.x} ${position.y + 0.05} ${position.z}; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine`);
 
         // Add click handler for collection
         duckEntity.addEventListener('click', (event) => {
