@@ -21,7 +21,7 @@
   - Test smooth camera movement without jerky transitions
   - _Requirements: 1.4, 4.3_
 
-- [ ] 4. Integrate camera background for true AR experience
+- [-] 4. Integrate camera background for true AR experience
   - Add getUserMedia() call to request camera access
   - Create video element to display camera feed behind A-Frame scene
   - Set A-Frame scene background to transparent to show camera feed

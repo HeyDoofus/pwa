@@ -39,6 +39,18 @@
             font-size: 16px;
         }
 
+        /* Camera video background */
+        #cameraVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            display: none;
+        }
+
         /* Make A-Frame canvas transparent */
         #arScene canvas {
             background: transparent !important;
@@ -51,7 +63,8 @@
 </head>
 
 <body>
-    <!-- Video removed for now -->
+    <!-- Camera video element for AR background -->
+    <video id="cameraVideo" autoplay playsinline muted></video>
 
     <div class="overlay">
         <h3>🦆 AR Duck Hunt</h3>
@@ -107,6 +120,11 @@
         let arActive = false;
         let videoStream = null;
         
+        // Camera-related variables
+        let cameraActive = false;
+        let cameraVideo = null;
+        let cameraPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied'
+        
         // Device orientation tracking variables
         let orientationActive = false;
         let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
@@ -121,6 +139,146 @@
         // iOS permission handling variables
         let motionPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied', 'not-required'
         let isIOSDevice = false;
+
+        // Camera Functions
+        async function requestCameraAccess() {
+            console.log('Requesting camera access...');
+            
+            try {
+                // Update UI to show requesting state
+                document.getElementById('status').textContent = 'Requesting camera access for AR...';
+                
+                // Request camera access with rear camera preference
+                const constraints = {
+                    video: {
+                        facingMode: 'environment', // Prefer rear camera for AR
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                cameraPermissionStatus = 'granted';
+                
+                // Set up video element
+                cameraVideo = document.getElementById('cameraVideo');
+                if (cameraVideo) {
+                    cameraVideo.srcObject = videoStream;
+                    cameraVideo.style.display = 'block';
+                    cameraActive = true;
+                    
+                    console.log('Camera access granted and video stream started');
+                    return true;
+                } else {
+                    throw new Error('Camera video element not found');
+                }
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                cameraPermissionStatus = 'denied';
+                handleCameraError(error);
+                return false;
+            }
+        }
+        
+        function handleCameraError(error) {
+            let message = 'Camera access is required for AR features.';
+            let userFriendlyMessage = '';
+            
+            if (error.name === 'NotAllowedError') {
+                message = 'Camera permission denied';
+                userFriendlyMessage = '📷 Camera access denied.<br>' +
+                    'For the best AR experience, please:<br>' +
+                    '1. Click the camera icon in your browser\'s address bar<br>' +
+                    '2. Allow camera access for this website<br>' +
+                    '3. Refresh the page and try again';
+            } else if (error.name === 'NotFoundError') {
+                message = 'No camera found';
+                userFriendlyMessage = '📷 No camera found on this device.<br>' +
+                    'AR camera features are not available.<br>' +
+                    'You can still play with virtual background.';
+            } else if (error.name === 'NotReadableError') {
+                message = 'Camera is being used by another application';
+                userFriendlyMessage = '📷 Camera is busy.<br>' +
+                    'Please close other apps using the camera and try again.';
+            } else if (error.name === 'OverconstrainedError') {
+                message = 'Camera constraints not supported';
+                userFriendlyMessage = '📷 Camera settings not supported.<br>' +
+                    'Trying with default camera settings...';
+                
+                // Try again with less restrictive constraints
+                setTimeout(() => {
+                    requestCameraAccessFallback();
+                }, 2000);
+                return;
+            } else {
+                message = `Camera error: ${error.message}`;
+                userFriendlyMessage = '📷 Camera access failed.<br>' +
+                    'Please check your camera permissions and try again.';
+            }
+            
+            console.error('Camera error:', message);
+            document.getElementById('status').innerHTML = userFriendlyMessage;
+        }
+        
+        async function requestCameraAccessFallback() {
+            console.log('Trying camera access with fallback constraints...');
+            
+            try {
+                // Try with basic constraints
+                const basicConstraints = {
+                    video: true
+                };
+                
+                videoStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+                cameraPermissionStatus = 'granted';
+                
+                cameraVideo = document.getElementById('cameraVideo');
+                if (cameraVideo) {
+                    cameraVideo.srcObject = videoStream;
+                    cameraVideo.style.display = 'block';
+                    cameraActive = true;
+                    
+                    document.getElementById('status').textContent = '✅ Camera access granted with basic settings!';
+                    console.log('Camera access granted with fallback constraints');
+                    return true;
+                }
+                
+            } catch (error) {
+                console.error('Fallback camera access failed:', error);
+                handleCameraError(error);
+                return false;
+            }
+        }
+        
+        function stopCamera() {
+            if (videoStream) {
+                // Stop all tracks in the stream
+                videoStream.getTracks().forEach(track => {
+                    track.stop();
+                    console.log('Camera track stopped:', track.kind);
+                });
+                videoStream = null;
+            }
+            
+            if (cameraVideo) {
+                cameraVideo.style.display = 'none';
+                cameraVideo.srcObject = null;
+            }
+            
+            cameraActive = false;
+            console.log('Camera stopped and resources released');
+        }
+        
+        function checkCameraSupport() {
+            // Check if getUserMedia is supported
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.warn('getUserMedia not supported');
+                return false;
+            }
+            
+            return true;
+        }
 
         // iOS Detection and Permission Functions
         function detectIOSDevice() {
@@ -401,7 +559,7 @@
             document.getElementById('status').textContent = 'All ducks cleared! Spawn new ones to hunt.';
         }
 
-        function startARHunt() {
+        async function startARHunt() {
             // Show A-Frame scene
             document.getElementById('arScene').style.display = 'block';
 
@@ -412,18 +570,34 @@
             document.getElementById('stopBtn').style.display = 'inline-block';
             document.getElementById('testButtons').style.display = 'block';
             
-            // Show smoothing controls if motion tracking is active
-            if (orientationActive) {
-                document.getElementById('smoothingControls').style.display = 'block';
-            }
-
             arActive = true;
+            
+            // Initialize camera for AR background
+            let cameraInitialized = false;
+            if (checkCameraSupport()) {
+                document.getElementById('status').textContent = 'Starting camera for AR experience...';
+                cameraInitialized = await requestCameraAccess();
+            } else {
+                console.warn('Camera not supported, using virtual background');
+                document.getElementById('status').textContent = 'Camera not supported, using virtual background';
+            }
             
             // Initialize device orientation tracking
             const orientationInitialized = initializeDeviceOrientation();
+            
+            // Show smoothing controls if motion tracking is active
             if (orientationInitialized) {
-                document.getElementById('status').textContent = '🦆 Duck Hunt Active with Motion Tracking! Move your device to look around!';
+                document.getElementById('smoothingControls').style.display = 'block';
                 document.getElementById('orientationDebug').style.display = 'block';
+            }
+            
+            // Update status based on what was initialized
+            if (cameraInitialized && orientationInitialized) {
+                document.getElementById('status').textContent = '🦆 Full AR Hunt Active! Camera + Motion Tracking enabled!';
+            } else if (cameraInitialized) {
+                document.getElementById('status').textContent = '🦆 AR Hunt Active with Camera! Use touch controls to look around.';
+            } else if (orientationInitialized) {
+                document.getElementById('status').textContent = '🦆 Duck Hunt Active with Motion Tracking! Move your device to look around!';
             } else {
                 // Check if it's because of permission issues
                 if (isIOSDevice && motionPermissionStatus === 'denied') {
@@ -446,6 +620,9 @@
         function stopARHunt() {
             arActive = false;
 
+            // Stop camera
+            stopCamera();
+            
             // Stop device orientation tracking
             stopDeviceOrientation();
             
