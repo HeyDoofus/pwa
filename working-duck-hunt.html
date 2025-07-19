@@ -42,7 +42,7 @@
 <body>
     <div class="overlay">
         <h3>🦆 Working Duck Hunt</h3>
-        <p id="status">Look around to find the bright yellow duck!</p>
+        <p id="status">Click "Spawn Duck" to start hunting! Turn around to find them.</p>
         <button class="button" onclick="spawnDuck()">Spawn Duck</button>
         <button class="button" onclick="clearDucks()">Clear All</button>
     </div>
@@ -62,29 +62,7 @@
         <!-- Sky -->
         <a-sky color="#87CEEB"></a-sky>
 
-        <!-- Test duck - always visible -->
-        <a-entity id="testDuck" position="0 2 -3" scale="0.5 0.5 0.5" visible="true"
-            animation="property: rotation; to: 0 360 0; loop: true; dur: 6000"
-            animation__float="property: position; to: 0 2.2 -3; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine">
-            
-            <!-- Bright yellow duck body -->
-            <a-sphere color="#ffeb3b" radius="1" position="0 0 0" scale="1 0.8 1.2"></a-sphere>
-            
-            <!-- Duck head -->
-            <a-sphere color="#ffeb3b" radius="0.6" position="0 0.7 0.3"></a-sphere>
-            
-            <!-- Orange beak -->
-            <a-cone color="#ff9800" radius-bottom="0.15" radius-top="0.05" height="0.3" 
-                    position="0 0.7 0.8" rotation="90 0 0"></a-cone>
-            
-            <!-- Black eyes -->
-            <a-sphere color="#000000" radius="0.08" position="-0.15 0.8 0.55"></a-sphere>
-            <a-sphere color="#000000" radius="0.08" position="0.15 0.8 0.55"></a-sphere>
-            
-            <!-- Bright glow -->
-            <a-sphere color="#ffff00" radius="2" position="0 0 0"
-                      material="color: #ffff00; opacity: 0.3; transparent: true"></a-sphere>
-        </a-entity>
+        <!-- No default duck - spawn them manually -->
 
         <!-- Lighting -->
         <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
@@ -182,10 +160,7 @@
             document.getElementById('status').textContent = 'All ducks cleared! Spawn new ones to hunt.';
         }
         
-        // Auto-spawn first duck after 2 seconds
-        setTimeout(() => {
-            spawnDuck();
-        }, 2000);
+        // No auto-spawn - user controls when to spawn ducks
         
         // Handle scene clicks
         document.querySelector('a-scene').addEventListener('click', function(event) {
