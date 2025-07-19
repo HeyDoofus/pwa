@@ -71,12 +71,13 @@
         arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
         vr-mode-ui="enabled: false" renderer="logarithmicDepthBuffer: true;">
 
-        <!-- AR Camera -->
+        <!-- AR Camera with proper look controls for duck hunting -->
         <a-camera 
             arjs-camera="sourceType: webcam; sourceWidth: 480; sourceHeight: 360; displayWidth: 480; displayHeight: 360;"
-            look-controls="enabled: false" 
+            look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true" 
             wasd-controls="enabled: false" 
-            position="0 0 0">
+            position="0 1.6 0"
+            rotation="0 0 0">
         </a-camera>
 
         <!-- Test Duck - Realistic Rubber Duck -->
@@ -141,6 +142,7 @@
                 document.getElementById('arScene').style.display = 'block';
                 document.getElementById('spawnBtn').style.display = 'inline-block';
                 document.getElementById('toggleBtn').style.display = 'inline-block';
+                document.getElementById('debugBtn').style.display = 'inline-block';
                 document.getElementById('closeBtn').style.display = 'block';
                 
                 arActive = true;
@@ -165,13 +167,15 @@
             const duck = document.getElementById('testDuck');
             if (duck) {
                 // Generate random position in 3D world space for duck hunting
-                const distance = 1.5 + Math.random() * 2.5; // 1.5 to 4 meters away
+                // Using negative Z values to place ducks in front/around the camera
+                const distance = 2 + Math.random() * 3; // 2 to 5 meters away
                 const angle = Math.random() * Math.PI * 2; // Full 360 degrees
-                const height = -0.8 + Math.random() * 1.6; // -0.8 to +0.8 meters
+                const height = 0.5 + Math.random() * 2; // 0.5 to 2.5 meters high (above ground)
                 
+                // Calculate world position
                 const x = Math.cos(angle) * distance;
                 const y = height;
-                const z = Math.sin(angle) * distance;
+                const z = -Math.sin(angle) * distance; // Negative Z for proper AR positioning
                 
                 const position = `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`;
                 
@@ -179,21 +183,27 @@
                 duck.setAttribute('visible', 'true');
                 duckVisible = true;
                 
-                // Get direction for user guidance
+                // Get direction for user guidance (corrected for AR coordinate system)
                 const degrees = (angle * 180 / Math.PI + 360) % 360;
                 let direction = "around you";
-                if (degrees < 45 || degrees >= 315) direction = "to your right";
-                else if (degrees >= 45 && degrees < 135) direction = "behind you";
-                else if (degrees >= 135 && degrees < 225) direction = "to your left";
-                else if (degrees >= 225 && degrees < 315) direction = "in front of you";
+                if (degrees >= 315 || degrees < 45) direction = "in front of you";
+                else if (degrees >= 45 && degrees < 135) direction = "to your right";
+                else if (degrees >= 135 && degrees < 225) direction = "behind you";
+                else if (degrees >= 225 && degrees < 315) direction = "to your left";
                 
-                document.getElementById('status').textContent = `Duck spawned ${direction}! Turn around to hunt for it.`;
+                document.getElementById('status').textContent = `Duck spawned ${direction}! Turn your phone to hunt for it.`;
+                console.log(`Duck spawned at: ${position}, Direction: ${direction}, Angle: ${degrees.toFixed(1)}°`);
                 
-                // Add click handler
-                duck.addEventListener('click', function() {
+                // Remove old click handlers and add new one
+                const newDuck = duck.cloneNode(true);
+                duck.parentNode.replaceChild(newDuck, duck);
+                
+                newDuck.addEventListener('click', function(e) {
+                    console.log('Duck clicked!');
                     document.getElementById('status').textContent = 'Duck found and collected! 🦆';
-                    duck.setAttribute('visible', 'false');
+                    newDuck.setAttribute('visible', 'false');
                     duckVisible = false;
+                    e.stopPropagation();
                 });
             }
         }
@@ -216,6 +226,7 @@
             document.getElementById('arScene').style.display = 'none';
             document.getElementById('spawnBtn').style.display = 'none';
             document.getElementById('toggleBtn').style.display = 'none';
+            document.getElementById('debugBtn').style.display = 'none';
             document.getElementById('closeBtn').style.display = 'none';
             document.getElementById('status').textContent = 'AR stopped. Click "Start AR" to begin again.';
         }
@@ -224,8 +235,34 @@
         document.getElementById('arScene').addEventListener('click', function(event) {
             if (arActive && duckVisible) {
                 document.getElementById('status').textContent = 'Screen tapped! If you see a duck, tap directly on it.';
+                console.log('Scene clicked at:', event.clientX, event.clientY);
             }
         });
+        
+        // Add debugging function
+        function debugDuckPosition() {
+            const duck = document.getElementById('testDuck');
+            if (duck && duckVisible) {
+                const pos = duck.getAttribute('position');
+                const visible = duck.getAttribute('visible');
+                console.log('Duck position:', pos, 'Visible:', visible);
+                document.getElementById('status').textContent = `Debug: Duck at ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}`;
+            }
+        }
+        
+        // Add debug button functionality
+        function addDebugButton() {
+            const debugBtn = document.createElement('button');
+            debugBtn.textContent = 'Debug Duck';
+            debugBtn.className = 'button';
+            debugBtn.onclick = debugDuckPosition;
+            debugBtn.style.display = 'none';
+            debugBtn.id = 'debugBtn';
+            document.querySelector('.overlay').appendChild(debugBtn);
+        }
+        
+        // Initialize debug button
+        addDebugButton();
     </script>
 </body>
 </html>
