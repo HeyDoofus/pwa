@@ -210,54 +210,50 @@ class ARManager {
      * Start duck hunting session with motion-based duck spawning
      */
     startDuckHunt() {
-        console.log('Starting motion-based duck hunt...');
+        console.log('Starting AR duck hunt experience...');
+        
+        this.updateARInstructions('🦆 Welcome to Duck Hunt! Turn around to find hidden ducks!');
         
         if (this.motionSensorManager) {
-            this.updateARInstructions('Move your device around to discover ducks!');
             this.startDuckPositionUpdates();
             
-            // Spawn initial duck immediately for testing
+            // Spawn initial duck after brief delay
             setTimeout(() => {
                 if (this.isARActive) {
-                    console.log('Spawning initial test duck...');
+                    console.log('Spawning initial hunt duck...');
                     this.spawnTestDuck();
-                    
-                    // Also try motion-based duck
-                    const orientation = this.motionSensorManager.getOrientation();
-                    this.spawnMotionBasedDuck(orientation);
                 }
-            }, 2000);
+            }, 3000);
             
-            // More frequent spawning for testing
+            // Regular spawning based on movement and time
             this.duckSpawnTimer = setInterval(() => {
-                if (this.isARActive && this.activeDucks.size < 3) {
+                if (this.isARActive && this.activeDucks.size < 2) {
                     const isMoving = this.motionSensorManager.isMoving();
-                    const spawnChance = isMoving ? 0.7 : 0.4; // Much higher chance
+                    const spawnChance = isMoving ? 0.6 : 0.3;
                     
                     if (Math.random() < spawnChance) {
                         const orientation = this.motionSensorManager.getOrientation();
                         this.spawnMotionBasedDuck(orientation);
-                        this.updateARInstructions(`Duck spawned! Total: ${this.activeDucks.size + 1}`);
                     }
                 }
-            }, 5000); // More frequent
+            }, 8000);
         } else {
-            // Enhanced fallback with visible duck
-            this.updateARInstructions('Looking for ducks... (No motion sensors)');
+            // Fallback mode without motion sensors
+            this.updateARInstructions('🦆 Duck Hunt Mode! Turn your camera around to find ducks!');
             
-            // Spawn a test duck immediately
+            // Spawn first duck
             setTimeout(() => {
                 if (this.isARActive) {
                     this.spawnTestDuck();
                 }
-            }, 1000);
+            }, 2000);
             
+            // Regular spawning
             this.duckSpawnTimer = setInterval(() => {
-                if (this.isARActive && Math.random() < 0.5) {
-                    this.showDuckSpotted();
+                if (this.isARActive && this.activeDucks.size < 2 && Math.random() < 0.4) {
                     this.spawnTestDuck();
                 }
-            }, 4000);
+            }, 10000);
         }
     }
 
@@ -379,10 +375,25 @@ class ARManager {
      * Spawn a duck based on device motion and orientation
      */
     spawnMotionBasedDuck(orientation) {
-        if (!this.motionSensorManager) return;
+        if (!this.motionSensorManager) {
+            // Fallback to random positioning if no motion sensors
+            this.spawnTestDuck();
+            return;
+        }
 
-        // Calculate position based on current orientation
-        const position = this.motionSensorManager.calculateDuckPosition(2.5);
+        // Calculate position based on current orientation but add randomness
+        const basePosition = this.motionSensorManager.calculateDuckPosition(2.5);
+        
+        // Add more randomness to make it a proper hunt
+        const randomDistance = 1.5 + Math.random() * 3; // 1.5 to 4.5 meters
+        const randomAngle = Math.random() * Math.PI * 2; // Full circle
+        const randomHeight = -1 + Math.random() * 2; // -1 to +1 meters
+        
+        const position = {
+            x: Math.cos(randomAngle) * randomDistance,
+            y: randomHeight,
+            z: Math.sin(randomAngle) * randomDistance
+        };
         
         // Create duck entity
         const duckId = 'motion-duck-' + Date.now();
@@ -396,7 +407,9 @@ class ARManager {
                 type: this.getDuckByRarity()
             });
 
+            const direction = this.getDirectionDescription(randomAngle);
             console.log(`Spawned motion-based duck at position:`, position);
+            this.updateARInstructions(`Duck appeared ${direction}! Look around to find it.`);
             
             // Auto-remove after 30 seconds
             setTimeout(() => {
@@ -424,6 +437,9 @@ class ARManager {
         duckEntity.setAttribute('scale', '0.08 0.08 0.08'); // Much smaller - like a real rubber duck
         duckEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 6000');
         duckEntity.setAttribute('visible', 'true');
+        // Ensure duck stays in world space, not camera space
+        duckEntity.setAttribute('look-controls', 'enabled: false');
+        duckEntity.setAttribute('wasd-controls', 'enabled: false');
         duckEntity.classList.add('collectible-duck');
 
         // Duck body - rounded like a real rubber duck
@@ -774,13 +790,21 @@ class ARManager {
     }
 
     /**
-     * Spawn a test duck in a guaranteed visible position
+     * Spawn a test duck in a random world position for duck hunting
      */
     spawnTestDuck() {
-        console.log('Spawning test duck in fixed position...');
+        console.log('Spawning test duck in random world position...');
         
-        // Fixed position that should be visible
-        const position = { x: 0, y: 0, z: -1.5 }; // 1.5 meters in front of camera
+        // Generate random position in 3D world space around the user
+        const distance = 1.5 + Math.random() * 2.5; // 1.5 to 4 meters away
+        const angle = Math.random() * Math.PI * 2; // Full 360 degrees
+        const height = -0.8 + Math.random() * 1.6; // -0.8 to +0.8 meters (eye level range)
+        
+        const position = {
+            x: Math.cos(angle) * distance,
+            y: height,
+            z: Math.sin(angle) * distance
+        };
         
         const duckId = 'test-duck-' + Date.now();
         const duckEntity = this.createDuckEntity(position, duckId);
@@ -793,16 +817,32 @@ class ARManager {
                 type: this.getDuckByRarity()
             });
 
+            // Calculate direction for user guidance
+            const direction = this.getDirectionDescription(angle);
             console.log(`Test duck spawned at position:`, position);
-            this.updateARInstructions(`Test duck spawned! Look straight ahead. Total ducks: ${this.activeDucks.size}`);
+            this.updateARInstructions(`Duck spawned ${direction}! Turn around to find it. Total ducks: ${this.activeDucks.size}`);
             
-            // Auto-remove after 20 seconds
+            // Auto-remove after 30 seconds
             setTimeout(() => {
                 this.removeDuckEntity(duckId);
-            }, 20000);
+            }, 30000);
         } else {
             console.error('Failed to create test duck entity');
         }
+    }
+
+    /**
+     * Get direction description based on angle
+     */
+    getDirectionDescription(angle) {
+        const degrees = (angle * 180 / Math.PI + 360) % 360;
+        
+        if (degrees < 45 || degrees >= 315) return "to your right";
+        if (degrees >= 45 && degrees < 135) return "behind you";
+        if (degrees >= 135 && degrees < 225) return "to your left";
+        if (degrees >= 225 && degrees < 315) return "in front of you";
+        
+        return "around you";
     }
 
     /**
