@@ -21,11 +21,89 @@
             left: 20px;
             right: 20px;
             z-index: 10;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.4);
             padding: 15px;
             border-radius: 10px;
             color: white;
             text-align: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .overlay.collapsed {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 15px;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+
+        .overlay.collapsed .collapsible-content {
+            display: none;
+        }
+
+        .overlay-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .overlay.collapsed .overlay-header {
+            margin-bottom: 0;
+        }
+
+        .toggle-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .transparency-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .transparency-slider {
+            width: 100px;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .transparency-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+
+        .transparency-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
         }
 
         .button {
@@ -80,39 +158,55 @@
     <!-- Camera video element for AR background -->
     <video id="cameraVideo" autoplay playsinline muted></video>
 
-    <div class="overlay">
-        <h3>🦆 AR Duck Hunt</h3>
-        <p id="status">Click "Start AR Hunt" to begin!</p>
-        <p id="orientationDebug" style="font-size: 12px; margin-top: 10px; display: none;"></p>
-        <button class="button" onclick="startARHunt()" id="startBtn">Start AR Hunt</button>
-        <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable
-            Motion Sensors</button>
-        <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable
-            Camera</button>
-        <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
-        <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
-        <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop AR</button>
-        <br>
-        <div id="smoothingControls" style="display:none; margin: 10px 0;">
-            <label style="font-size: 12px;">Camera Smoothing:</label>
-            <button class="button" onclick="setSmoothingFactor(0.9)"
-                style="font-size: 12px; padding: 5px 10px;">High</button>
-            <button class="button" onclick="setSmoothingFactor(0.8)"
-                style="font-size: 12px; padding: 5px 10px;">Medium</button>
-            <button class="button" onclick="setSmoothingFactor(0.6)"
-                style="font-size: 12px; padding: 5px 10px;">Low</button>
-            <button class="button" onclick="setSmoothingFactor(0.0)"
-                style="font-size: 12px; padding: 5px 10px;">Off</button>
+    <div class="overlay" id="mainOverlay">
+        <div class="overlay-header">
+            <h3 style="margin: 0;">🦆 AR Duck Hunt</h3>
+            <button class="toggle-btn" onclick="toggleOverlay()" id="toggleBtn">−</button>
         </div>
-        <div id="testButtons" style="display:none;">
-            <button class="button" onclick="testDirection('FRONT')">Test FRONT</button>
-            <button class="button" onclick="testDirection('BACK')">Test BACK</button>
-            <button class="button" onclick="testDirection('LEFT')">Test LEFT</button>
-            <button class="button" onclick="testDirection('RIGHT')">Test RIGHT</button>
-            <br>
-            <button class="button" onclick="testOrientation()">Test Orientation</button>
-            <button class="button" onclick="testSmoothingTransition()">Test Smoothing</button>
-            <button class="button" onclick="debugCameraAndDucks()">Debug Info</button>
+        
+        <div class="collapsible-content">
+            <div class="transparency-controls">
+                <span>Panel:</span>
+                <input type="range" class="transparency-slider" id="transparencySlider" 
+                       min="0.1" max="0.9" step="0.1" value="0.4" 
+                       oninput="updateOverlayTransparency(this.value)">
+                <span id="transparencyValue">40%</span>
+            </div>
+            
+            <p id="status">Click "Start AR Hunt" to begin!</p>
+            <p id="orientationDebug" style="font-size: 12px; margin-top: 10px; display: none;"></p>
+            
+            <button class="button" onclick="startARHunt()" id="startBtn">Start AR Hunt</button>
+            <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable
+                Motion Sensors</button>
+            <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable
+                Camera</button>
+            <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
+            <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
+            <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop AR</button>
+            
+            <div id="smoothingControls" style="display:none; margin: 10px 0;">
+                <label style="font-size: 12px;">Camera Smoothing:</label>
+                <button class="button" onclick="setSmoothingFactor(0.9)"
+                    style="font-size: 12px; padding: 5px 10px;">High</button>
+                <button class="button" onclick="setSmoothingFactor(0.8)"
+                    style="font-size: 12px; padding: 5px 10px;">Medium</button>
+                <button class="button" onclick="setSmoothingFactor(0.6)"
+                    style="font-size: 12px; padding: 5px 10px;">Low</button>
+                <button class="button" onclick="setSmoothingFactor(0.0)"
+                    style="font-size: 12px; padding: 5px 10px;">Off</button>
+            </div>
+            
+            <div id="testButtons" style="display:none;">
+                <button class="button" onclick="testDirection('FRONT')">Test FRONT</button>
+                <button class="button" onclick="testDirection('BACK')">Test BACK</button>
+                <button class="button" onclick="testDirection('LEFT')">Test LEFT</button>
+                <button class="button" onclick="testDirection('RIGHT')">Test RIGHT</button>
+                <br>
+                <button class="button" onclick="testOrientation()">Test Orientation</button>
+                <button class="button" onclick="testSmoothingTransition()">Test Smoothing</button>
+                <button class="button" onclick="debugCameraAndDucks()">Debug Info</button>
+            </div>
         </div>
     </div>
 
@@ -1027,6 +1121,39 @@
         document.querySelector('a-scene').addEventListener('click', function (event) {
             console.log('Scene clicked - look for ducks to tap!');
         });
+
+        // Overlay control functions
+        function toggleOverlay() {
+            const overlay = document.getElementById('mainOverlay');
+            const toggleBtn = document.getElementById('toggleBtn');
+            
+            if (overlay.classList.contains('collapsed')) {
+                // Expand
+                overlay.classList.remove('collapsed');
+                toggleBtn.textContent = '−';
+            } else {
+                // Collapse
+                overlay.classList.add('collapsed');
+                toggleBtn.textContent = '+';
+            }
+        }
+
+        function updateOverlayTransparency(value) {
+            const overlay = document.getElementById('mainOverlay');
+            const transparencyValue = document.getElementById('transparencyValue');
+            
+            // Update the background opacity
+            const opacity = parseFloat(value);
+            overlay.style.background = `rgba(0, 0, 0, ${opacity})`;
+            
+            // Update the display value
+            transparencyValue.textContent = `${Math.round(opacity * 100)}%`;
+            
+            // Adjust backdrop blur based on transparency
+            const blurAmount = Math.max(2, opacity * 10);
+            overlay.style.backdropFilter = `blur(${blurAmount}px)`;
+            overlay.style.webkitBackdropFilter = `blur(${blurAmount}px)`;
+        }
 
         // Debug function to check camera and duck status
         function debugCameraAndDucks() {
