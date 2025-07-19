@@ -27,8 +27,8 @@
             color: white;
             text-align: center;
             transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
@@ -69,42 +69,7 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
-        .transparency-controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-            font-size: 12px;
-        }
 
-        .transparency-slider {
-            width: 100px;
-            height: 4px;
-            border-radius: 2px;
-            background: rgba(255, 255, 255, 0.3);
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        .transparency-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #4CAF50;
-            cursor: pointer;
-        }
-
-        .transparency-slider::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #4CAF50;
-            cursor: pointer;
-            border: none;
-        }
 
         .button {
             background: #4CAF50;
@@ -163,61 +128,17 @@
             <h3 style="margin: 0;">🦆 AR Duck Hunt</h3>
             <button class="toggle-btn" onclick="toggleOverlay()" id="toggleBtn">−</button>
         </div>
-        
+
         <div class="collapsible-content">
-            <div class="transparency-controls">
-                <span>Panel:</span>
-                <input type="range" class="transparency-slider" id="transparencySlider" 
-                       min="0.1" max="0.9" step="0.1" value="0.4" 
-                       oninput="updateOverlayTransparency(this.value)">
-                <span id="transparencyValue">40%</span>
-            </div>
-            
-            <p id="status">Click "Start AR Hunt" to begin!</p>
-            <p id="orientationDebug" style="font-size: 12px; margin-top: 10px; display: none;"></p>
-            
-            <button class="button" onclick="startARHunt()" id="startBtn">Start AR Hunt</button>
+            <p id="status">Click "Start Experience" to begin!</p>
+            <p id="huntHint" style="font-size: 14px; margin-top: 10px; color: #ffeb3b; display: none;"></p>
+
+            <button class="button" onclick="startARHunt()" id="startBtn">Start Experience</button>
             <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable
                 Motion Sensors</button>
             <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable
                 Camera</button>
-            <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
-            <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
-            <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop AR</button>
-            
-            <div id="smoothingControls" style="display:none; margin: 10px 0;">
-                <label style="font-size: 12px;">Camera Smoothing:</label>
-                <button class="button" onclick="setSmoothingFactor(0.9)"
-                    style="font-size: 12px; padding: 5px 10px;">High</button>
-                <button class="button" onclick="setSmoothingFactor(0.8)"
-                    style="font-size: 12px; padding: 5px 10px;">Medium</button>
-                <button class="button" onclick="setSmoothingFactor(0.6)"
-                    style="font-size: 12px; padding: 5px 10px;">Low</button>
-                <button class="button" onclick="setSmoothingFactor(0.0)"
-                    style="font-size: 12px; padding: 5px 10px;">Off</button>
-            </div>
-            
-            <div id="performanceControls" style="display:none; margin: 10px 0;">
-                <label style="font-size: 12px;">Performance Mode:</label>
-                <button class="button" onclick="setPerformanceMode('performance')"
-                    style="font-size: 12px; padding: 5px 10px;">Performance</button>
-                <button class="button" onclick="setPerformanceMode('auto')"
-                    style="font-size: 12px; padding: 5px 10px;">Auto</button>
-                <button class="button" onclick="setPerformanceMode('quality')"
-                    style="font-size: 12px; padding: 5px 10px;">Quality</button>
-            </div>
-            
-            <div id="testButtons" style="display:none;">
-                <button class="button" onclick="testDirection('FRONT')">Test FRONT</button>
-                <button class="button" onclick="testDirection('BACK')">Test BACK</button>
-                <button class="button" onclick="testDirection('LEFT')">Test LEFT</button>
-                <button class="button" onclick="testDirection('RIGHT')">Test RIGHT</button>
-                <br>
-                <button class="button" onclick="testOrientation()">Test Orientation</button>
-                <button class="button" onclick="testSmoothingTransition()">Test Smoothing</button>
-                <button class="button" onclick="testPerformanceOptimizations()">Test Performance</button>
-                <button class="button" onclick="debugCameraAndDucks()">Debug Info</button>
-            </div>
+            <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop Experience</button>
         </div>
     </div>
 
@@ -258,17 +179,21 @@
         let camera = null;
 
         // Orientation smoothing configuration
-        let smoothingFactor = 0.8; // Higher values = more smoothing (0.0 to 1.0)
+        let smoothingFactor = 0.8; // Medium smoothing (0.0 to 1.0)
         let lastOrientationUpdate = 0;
         let orientationUpdateThreshold = 16; // ~60fps (16ms between updates)
-        
+
         // Mobile performance optimization variables
         let isLowEndDevice = false;
         let currentDeviceOrientation = 'portrait';
         let orientationChangeTimeout = null;
-        let performanceMode = 'auto'; // 'auto', 'performance', 'quality'
+        let performanceMode = 'auto'; // Fixed to auto performance mode
         let frameSkipCounter = 0;
         let targetFPS = 60;
+
+        // Duck hunting variables
+        let maxDucks = 1; // Only one duck at a time for focused hunting
+        let duckSpawnTimer = null;
 
         // Duck positioning fix variables
         let duckPositions = new Map(); // Track original duck positions
@@ -283,7 +208,7 @@
             const userAgent = navigator.userAgent.toLowerCase();
             const hardwareConcurrency = navigator.hardwareConcurrency || 2;
             const deviceMemory = navigator.deviceMemory || 2;
-            
+
             // Check for low-end device indicators
             isLowEndDevice = (
                 hardwareConcurrency <= 2 ||
@@ -292,14 +217,14 @@
                 userAgent.includes('android 5') ||
                 (userAgent.includes('iphone') && (userAgent.includes('iphone os 10') || userAgent.includes('iphone os 11')))
             );
-            
+
             console.log('Device capabilities detected:', {
                 isLowEndDevice,
                 hardwareConcurrency,
                 deviceMemory,
                 userAgent: userAgent.substring(0, 50) + '...'
             });
-            
+
             // Adjust performance settings based on device
             if (isLowEndDevice) {
                 orientationUpdateThreshold = 33; // ~30fps for low-end devices
@@ -316,7 +241,7 @@
                     facingMode: 'environment'
                 }
             };
-            
+
             // Optimize resolution based on device capabilities and orientation
             if (isLowEndDevice) {
                 // Lower resolution for low-end devices
@@ -327,7 +252,7 @@
                 constraints.video.width = { ideal: 1280, max: 1920 };
                 constraints.video.height = { ideal: 720, max: 1080 };
             }
-            
+
             // Adjust for current orientation
             if (currentDeviceOrientation === 'landscape') {
                 // Swap width/height for landscape
@@ -335,14 +260,14 @@
                 constraints.video.width = constraints.video.height;
                 constraints.video.height = tempWidth;
             }
-            
+
             // Frame rate optimization
             if (performanceMode === 'performance') {
                 constraints.video.frameRate = { ideal: 30, max: 30 };
             } else {
                 constraints.video.frameRate = { ideal: 60, max: 60 };
             }
-            
+
             console.log('Optimized camera constraints:', constraints);
             return constraints;
         }
@@ -579,14 +504,14 @@
             console.log('Motion sensor permissions granted');
 
             // Update UI
-            document.getElementById('status').textContent = '✅ Motion sensors enabled! You can now start AR Hunt.';
+            document.getElementById('status').textContent = '✅ Motion sensors enabled! You can now start the experience.';
             document.getElementById('permissionBtn').style.display = 'none';
             document.getElementById('startBtn').style.display = 'inline-block';
 
             // Show success message briefly
             setTimeout(() => {
                 if (!arActive) {
-                    document.getElementById('status').textContent = 'Motion sensors ready! Click "Start AR Hunt" to begin.';
+                    document.getElementById('status').textContent = 'Motion sensors ready! Click "Start Experience" to begin.';
                 }
             }, 3000);
         }
@@ -645,7 +570,21 @@
             }
         }
 
+        function startDuckHuntingLoop() {
+            // Spawn first duck immediately
+            setTimeout(() => {
+                if (arActive && activeDucks.length === 0) {
+                    spawnDuck();
+                }
+            }, 2000);
+        }
+
         function spawnDuck() {
+            // Only spawn if no ducks are active (one at a time)
+            if (activeDucks.length >= maxDucks) {
+                return;
+            }
+
             duckCounter++;
             const duckId = `duck${duckCounter}`;
 
@@ -654,9 +593,9 @@
             duck.setAttribute('id', duckId);
 
             // Random position around user in WORLD SPACE (not relative to camera)
-            const distance = 2 + Math.random() * 4; // 2-6 meters
+            const distance = 2 + Math.random() * 3; // 2-5 meters
             const angle = Math.random() * Math.PI * 2; // 360 degrees
-            const height = 1 + Math.random() * 3; // 1-4 meters high
+            const height = 1.5 + Math.random() * 2; // 1.5-3.5 meters high
 
             const x = Math.cos(angle) * distance;
             const y = height;
@@ -667,22 +606,18 @@
 
             // Set position in world coordinates (not relative to camera)
             duck.setAttribute('position', `${x} ${y} ${z}`);
-            duck.setAttribute('scale', '0.4 0.4 0.4');
-            duck.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 5000');
-            duck.setAttribute('animation__float', `property: position; to: ${x} ${y + 0.3} ${z}; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine`);
+            duck.setAttribute('scale', '0.3 0.3 0.3');
+            duck.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 6000');
+            duck.setAttribute('animation__float', `property: position; to: ${x} ${y + 0.2} ${z}; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine`);
 
-            // Ensure duck is not attached to camera
-            duck.setAttribute('look-controls', 'enabled: false');
-            duck.setAttribute('wasd-controls', 'enabled: false');
-
-            // Duck components
+            // Duck components - make it more visible
             duck.innerHTML = `
                 <a-sphere color="#ffeb3b" radius="1" position="0 0 0" scale="1 0.8 1.2"></a-sphere>
                 <a-sphere color="#ffeb3b" radius="0.6" position="0 0.7 0.3"></a-sphere>
                 <a-cone color="#ff9800" radius-bottom="0.15" radius-top="0.05" height="0.3" position="0 0.7 0.8" rotation="90 0 0"></a-cone>
                 <a-sphere color="#000000" radius="0.08" position="-0.15 0.8 0.55"></a-sphere>
                 <a-sphere color="#000000" radius="0.08" position="0.15 0.8 0.55"></a-sphere>
-                <a-sphere color="#ffff00" radius="2" position="0 0 0" material="color: #ffff00; opacity: 0.3; transparent: true"></a-sphere>
+                <a-sphere color="#ffff00" radius="1.5" position="0 0 0" material="color: #ffff00; opacity: 0.2; transparent: true"></a-sphere>
             `;
 
             // Add click handler
@@ -698,44 +633,68 @@
                 e.stopPropagation();
             });
 
-            // Add to scene (not to camera!)
+            // Add to scene
             document.querySelector('a-scene').appendChild(duck);
             activeDucks.push({ id: duckId, element: duck, position: { x, y, z } });
 
-            // Direction guidance - using actual coordinates instead of angle
-            let direction = "around you";
-            const degrees = (angle * 180 / Math.PI + 360) % 360;
+            // Generate hunting hint
+            const hint = generateHuntingHint(x, z, y, distance);
 
-            // Use the actual X and Z coordinates to determine direction
+            // Update status and show hint
+            document.getElementById('status').textContent = '🦆 A duck has appeared! Listen for the hint...';
+            document.getElementById('huntHint').style.display = 'block';
+            document.getElementById('huntHint').textContent = hint;
+
+            console.log(`Duck ${duckId} spawned at: ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)} - ${hint}`);
+        }
+
+        function generateHuntingHint(x, z, y, distance) {
+            let direction = "";
+            let heightHint = "";
+            let distanceHint = "";
+
+            // Direction hint
             if (Math.abs(x) > Math.abs(z)) {
-                // X is dominant
-                if (x > 0) direction = "to your right";
-                else direction = "to your left";
+                direction = x > 0 ? "to your right" : "to your left";
             } else {
-                // Z is dominant  
-                if (z > 0) direction = "behind you";
-                else direction = "in front of you";
+                direction = z > 0 ? "behind you" : "in front of you";
             }
 
-            // Add secondary direction for more precision
-            let secondary = "";
+            // Add diagonal hints for more precision
             if (Math.abs(x) > 1 && Math.abs(z) > 1) {
-                if (x > 0 && z > 0) secondary = " (right-behind)";
-                else if (x > 0 && z < 0) secondary = " (right-front)";
-                else if (x < 0 && z > 0) secondary = " (left-behind)";
-                else if (x < 0 && z < 0) secondary = " (left-front)";
+                if (x > 0 && z > 0) direction = "behind and to your right";
+                else if (x > 0 && z < 0) direction = "in front and to your right";
+                else if (x < 0 && z > 0) direction = "behind and to your left";
+                else if (x < 0 && z < 0) direction = "in front and to your left";
             }
-            direction += secondary;
 
-            document.getElementById('status').textContent =
-                `Duck #${duckCounter} spawned ${direction}! Position: (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}) (${activeDucks.length} total)`;
+            // Height hint
+            if (y < 2) {
+                heightHint = "Look down low";
+            } else if (y > 3) {
+                heightHint = "Look up high";
+            } else {
+                heightHint = "Look at eye level";
+            }
 
-            console.log(`Duck ${duckId} spawned at: ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)} (${direction}) - Angle: ${degrees.toFixed(1)}°`);
+            // Distance hint
+            if (distance < 3) {
+                distanceHint = "It's close by";
+            } else if (distance > 4) {
+                distanceHint = "It's far away";
+            } else {
+                distanceHint = "It's at medium distance";
+            }
+
+            return `🎯 ${heightHint} ${direction}. ${distanceHint}. Listen for the quacking!`;
         }
 
         function collectDuck(duckId) {
             console.log(`Duck ${duckId} collected!`);
-            document.getElementById('status').textContent = `🎉 Duck ${duckId} collected! Great shot!`;
+
+            // Hide hint and show success message
+            document.getElementById('huntHint').style.display = 'none';
+            document.getElementById('status').textContent = `🎉 Excellent shot! Duck collected!`;
 
             const duckIndex = activeDucks.findIndex(d => d.id === duckId);
             if (duckIndex !== -1) {
@@ -749,12 +708,17 @@
             // Clear stored position
             duckPositions.delete(duckId);
 
-            // Auto-spawn new duck
+            // Auto-spawn new duck after a short celebration
             setTimeout(() => {
-                if (activeDucks.length < 3) {
-                    spawnDuck();
+                if (arActive) {
+                    document.getElementById('status').textContent = '🦆 Get ready for the next duck...';
+                    setTimeout(() => {
+                        if (arActive) {
+                            spawnDuck();
+                        }
+                    }, 1000);
                 }
-            }, 1500);
+            }, 2000);
         }
 
         function testDirection(direction) {
@@ -832,7 +796,7 @@
             });
             activeDucks = [];
             duckPositions.clear(); // Clear all stored positions
-            document.getElementById('status').textContent = 'All ducks cleared! Spawn new ones to hunt.';
+            document.getElementById('huntHint').style.display = 'none';
         }
 
         async function startARHunt() {
@@ -860,14 +824,15 @@
                 }
             }
 
-            // Show controls
+            // Show only stop button
             document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('spawnBtn').style.display = 'inline-block';
-            document.getElementById('clearBtn').style.display = 'inline-block';
             document.getElementById('stopBtn').style.display = 'inline-block';
-            document.getElementById('testButtons').style.display = 'block';
 
             arActive = true;
+
+            // Set medium smoothing and auto performance as defaults
+            setSmoothingFactor(0.8); // Medium smoothing
+            setPerformanceMode('auto'); // Auto performance
 
             // Initialize camera for AR background
             let cameraInitialized = false;
@@ -882,39 +847,19 @@
             // Initialize device orientation tracking
             const orientationInitialized = initializeDeviceOrientation();
 
-            // Show smoothing controls if motion tracking is active
-            if (orientationInitialized) {
-                document.getElementById('smoothingControls').style.display = 'block';
-                document.getElementById('orientationDebug').style.display = 'block';
-            }
-            
-            // Always show performance controls when AR is active
-            document.getElementById('performanceControls').style.display = 'block';
-
             // Update status based on what was initialized
             if (cameraInitialized && orientationInitialized) {
-                document.getElementById('status').textContent = '🦆 Full AR Hunt Active! Camera + Motion Tracking enabled!';
+                document.getElementById('status').textContent = '🦆 Duck Hunt Active! Look around to find ducks!';
             } else if (cameraInitialized) {
-                document.getElementById('status').textContent = '🦆 AR Hunt Active with Camera! Use touch controls to look around.';
+                document.getElementById('status').textContent = '🦆 Duck Hunt Active! Use touch to look around and find ducks!';
             } else if (orientationInitialized) {
-                document.getElementById('status').textContent = '🦆 Duck Hunt Active with Motion Tracking! Move your device to look around!';
+                document.getElementById('status').textContent = '🦆 Duck Hunt Active! Move your device to find ducks!';
             } else {
-                // Check if it's because of permission issues
-                if (isIOSDevice && motionPermissionStatus === 'denied') {
-                    document.getElementById('status').textContent = '🦆 Duck Hunt Active! Motion sensors disabled - using manual controls.';
-                } else if (isIOSDevice && motionPermissionStatus === 'unknown') {
-                    document.getElementById('status').textContent = '🦆 Duck Hunt Active! Motion permissions not requested - using manual controls.';
-                } else {
-                    document.getElementById('status').textContent = '🦆 Duck Hunt Active! Use touch controls to look around and spawn ducks!';
-                }
+                document.getElementById('status').textContent = '🦆 Duck Hunt Active! Look around to find ducks!';
             }
 
-            // Auto-spawn first duck after 2 seconds
-            setTimeout(() => {
-                if (arActive) {
-                    spawnDuck();
-                }
-            }, 2000);
+            // Start the duck hunting experience
+            startDuckHuntingLoop();
         }
 
         function stopARHunt() {
@@ -926,11 +871,15 @@
             // Stop device orientation tracking
             stopDeviceOrientation();
 
-            // Hide debug info
-            document.getElementById('orientationDebug').style.display = 'none';
+            // Clear any spawn timers
+            if (duckSpawnTimer) {
+                clearTimeout(duckSpawnTimer);
+                duckSpawnTimer = null;
+            }
 
-            // Clear ducks
+            // Clear ducks and hide hint
             clearDucks();
+            document.getElementById('huntHint').style.display = 'none';
 
             // Hide scene
             document.getElementById('arScene').style.display = 'none';
@@ -949,7 +898,7 @@
                 }
             } else {
                 document.getElementById('startBtn').style.display = 'inline-block';
-                document.getElementById('startBtn').textContent = 'Start AR Hunt';
+                document.getElementById('startBtn').textContent = 'Start Experience';
                 document.getElementById('permissionBtn').style.display = 'none';
             }
 
@@ -960,14 +909,9 @@
                 document.getElementById('cameraBtn').style.display = 'none';
             }
 
-            document.getElementById('spawnBtn').style.display = 'none';
-            document.getElementById('clearBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'none';
-            document.getElementById('testButtons').style.display = 'none';
-            document.getElementById('smoothingControls').style.display = 'none';
-            document.getElementById('performanceControls').style.display = 'none';
 
-            document.getElementById('status').textContent = 'Duck Hunt stopped. Click "Start AR Hunt" to begin again.';
+            document.getElementById('status').textContent = 'Duck Hunt stopped. Click "Start Experience" to begin again.';
         }
 
         // No auto-spawn - user controls when to spawn ducks
@@ -1103,7 +1047,7 @@
             // Apply smoothed rotation to camera using requestAnimationFrame for smooth updates
             requestAnimationFrame(() => {
                 camera.setAttribute('rotation', `${pitch} ${yaw} ${roll}`);
-                
+
                 // Monitor performance
                 if (performanceMode === 'auto') {
                     adjustPerformanceSettings();
@@ -1135,7 +1079,7 @@
 
         function testOrientation() {
             if (!camera) {
-                document.getElementById('status').textContent = 'Camera not found! Start AR Hunt first.';
+                document.getElementById('status').textContent = 'Camera not found! Start Experience first.';
                 return;
             }
 
@@ -1170,7 +1114,7 @@
 
         function testSmoothingTransition() {
             if (!camera) {
-                document.getElementById('status').textContent = 'Camera not found! Start AR Hunt first.';
+                document.getElementById('status').textContent = 'Camera not found! Start Experience first.';
                 return;
             }
 
@@ -1228,7 +1172,7 @@
         function toggleOverlay() {
             const overlay = document.getElementById('mainOverlay');
             const toggleBtn = document.getElementById('toggleBtn');
-            
+
             if (overlay.classList.contains('collapsed')) {
                 // Expand
                 overlay.classList.remove('collapsed');
@@ -1240,22 +1184,7 @@
             }
         }
 
-        function updateOverlayTransparency(value) {
-            const overlay = document.getElementById('mainOverlay');
-            const transparencyValue = document.getElementById('transparencyValue');
-            
-            // Update the background opacity
-            const opacity = parseFloat(value);
-            overlay.style.background = `rgba(0, 0, 0, ${opacity})`;
-            
-            // Update the display value
-            transparencyValue.textContent = `${Math.round(opacity * 100)}%`;
-            
-            // Adjust backdrop blur based on transparency
-            const blurAmount = Math.max(2, opacity * 10);
-            overlay.style.backdropFilter = `blur(${blurAmount}px)`;
-            overlay.style.webkitBackdropFilter = `blur(${blurAmount}px)`;
-        }
+
 
         // Debug function to check camera and duck status
         function debugCameraAndDucks() {
@@ -1279,7 +1208,7 @@
             console.log('Current orientation:', currentOrientation);
             console.log('AR active:', arActive);
             console.log('Camera active:', cameraActive);
-            
+
             // Performance debug info
             console.log('=== PERFORMANCE INFO ===');
             console.log('Device capabilities:', {
@@ -1292,7 +1221,7 @@
                 orientationUpdateThreshold,
                 smoothingFactor
             });
-            
+
             if (videoStream) {
                 const videoTrack = videoStream.getVideoTracks()[0];
                 if (videoTrack) {
@@ -1300,34 +1229,34 @@
                     console.log('Camera constraints:', videoTrack.getConstraints());
                 }
             }
-            
+
             console.log('=== END DEBUG ===');
         }
 
         // Performance test function
         function testPerformanceOptimizations() {
             console.log('=== PERFORMANCE TEST ===');
-            
+
             // Test device detection
             console.log('1. Device Detection Test:');
             detectDeviceCapabilities();
-            
+
             // Test orientation handling
             console.log('2. Orientation Handling Test:');
             handleOrientationChange();
-            
+
             // Test performance mode switching
             console.log('3. Performance Mode Test:');
             ['performance', 'auto', 'quality'].forEach(mode => {
                 setPerformanceMode(mode);
                 console.log(`Mode ${mode}: throttle=${orientationUpdateThreshold}ms, target=${targetFPS}fps`);
             });
-            
+
             // Test camera constraints optimization
             console.log('4. Camera Constraints Test:');
             const constraints = getOptimizedCameraConstraints();
             console.log('Optimized constraints:', constraints);
-            
+
             console.log('=== PERFORMANCE TEST COMPLETE ===');
         }
 
@@ -1336,7 +1265,7 @@
             // Detect current orientation
             const orientation = screen.orientation || screen.mozOrientation || screen.msOrientation;
             let newOrientation = 'portrait';
-            
+
             if (orientation) {
                 if (orientation.angle === 90 || orientation.angle === 270) {
                     newOrientation = 'landscape';
@@ -1347,31 +1276,31 @@
                     newOrientation = 'landscape';
                 }
             }
-            
+
             if (newOrientation !== currentDeviceOrientation) {
                 console.log(`Orientation changed from ${currentDeviceOrientation} to ${newOrientation}`);
                 currentDeviceOrientation = newOrientation;
-                
+
                 // Clear any existing timeout
                 if (orientationChangeTimeout) {
                     clearTimeout(orientationChangeTimeout);
                 }
-                
+
                 // Debounce orientation changes to prevent rapid updates
                 orientationChangeTimeout = setTimeout(() => {
                     handleOrientationChangeComplete(newOrientation);
                 }, 300);
             }
         }
-        
+
         function handleOrientationChangeComplete(orientation) {
             console.log(`Orientation change complete: ${orientation}`);
-            
+
             // Update camera constraints if camera is active
             if (cameraActive && videoStream) {
                 updateCameraForOrientation();
             }
-            
+
             // Adjust performance settings for orientation
             if (orientation === 'landscape') {
                 // Landscape typically has better performance
@@ -1384,20 +1313,20 @@
                     orientationUpdateThreshold = Math.min(33, orientationUpdateThreshold + 4);
                 }
             }
-            
+
             // Update UI elements for new orientation if needed
             updateUIForOrientation(orientation);
         }
-        
+
         async function updateCameraForOrientation() {
             if (!cameraActive || !videoStream) return;
-            
+
             try {
                 console.log('Updating camera for orientation change...');
-                
+
                 // Get new optimized constraints
                 const newConstraints = getOptimizedCameraConstraints();
-                
+
                 // Apply new constraints to existing stream
                 const videoTrack = videoStream.getVideoTracks()[0];
                 if (videoTrack && videoTrack.applyConstraints) {
@@ -1411,7 +1340,7 @@
                 // Continue with existing camera settings
             }
         }
-        
+
         function updateUIForOrientation(orientation) {
             // Adjust overlay positioning for different orientations
             const overlay = document.getElementById('mainOverlay');
@@ -1437,17 +1366,17 @@
         function adjustPerformanceSettings() {
             // Monitor frame rate and adjust settings dynamically
             const now = performance.now();
-            
+
             frameCount++;
-            
+
             // Check FPS every second
             if (now - lastFPSCheck >= 1000) {
                 const currentFPS = frameCount;
                 frameCount = 0;
                 lastFPSCheck = now;
-                
+
                 console.log(`Current FPS: ${currentFPS}, Target: ${targetFPS}`);
-                
+
                 // Adjust settings if performance is poor
                 if (currentFPS < targetFPS * 0.8) {
                     // Performance is poor, reduce quality
@@ -1455,7 +1384,7 @@
                         orientationUpdateThreshold += 8;
                         console.log(`Performance adjustment: increased throttling to ${orientationUpdateThreshold}ms`);
                     }
-                    
+
                     if (smoothingFactor < 0.9) {
                         smoothingFactor += 0.1;
                         console.log(`Performance adjustment: increased smoothing to ${smoothingFactor}`);
@@ -1468,7 +1397,7 @@
                     }
                 }
             }
-            
+
             lastFrameTime = now;
         }
 
@@ -1476,7 +1405,7 @@
         function setPerformanceMode(mode) {
             performanceMode = mode;
             console.log(`Performance mode set to: ${mode}`);
-            
+
             // Apply mode-specific settings
             switch (mode) {
                 case 'performance':
@@ -1501,7 +1430,7 @@
                     }
                     break;
             }
-            
+
             // Update camera constraints if camera is active
             if (cameraActive && videoStream) {
                 updateCameraForOrientation();
@@ -1511,17 +1440,17 @@
         // Initialize permission checking when page loads
         document.addEventListener('DOMContentLoaded', function () {
             console.log('Page loaded, checking motion permission requirements...');
-            
+
             // Detect device capabilities first
             detectDeviceCapabilities();
-            
+
             // Set up orientation change listeners
             window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
             window.addEventListener('resize', handleOrientationChange, { passive: true });
-            
+
             // Initial orientation detection
             handleOrientationChange();
-            
+
             checkMotionPermissionStatus();
 
             // Add debug button to console
