@@ -197,6 +197,16 @@
                     style="font-size: 12px; padding: 5px 10px;">Off</button>
             </div>
             
+            <div id="performanceControls" style="display:none; margin: 10px 0;">
+                <label style="font-size: 12px;">Performance Mode:</label>
+                <button class="button" onclick="setPerformanceMode('performance')"
+                    style="font-size: 12px; padding: 5px 10px;">Performance</button>
+                <button class="button" onclick="setPerformanceMode('auto')"
+                    style="font-size: 12px; padding: 5px 10px;">Auto</button>
+                <button class="button" onclick="setPerformanceMode('quality')"
+                    style="font-size: 12px; padding: 5px 10px;">Quality</button>
+            </div>
+            
             <div id="testButtons" style="display:none;">
                 <button class="button" onclick="testDirection('FRONT')">Test FRONT</button>
                 <button class="button" onclick="testDirection('BACK')">Test BACK</button>
@@ -250,6 +260,14 @@
         let smoothingFactor = 0.8; // Higher values = more smoothing (0.0 to 1.0)
         let lastOrientationUpdate = 0;
         let orientationUpdateThreshold = 16; // ~60fps (16ms between updates)
+        
+        // Mobile performance optimization variables
+        let isLowEndDevice = false;
+        let currentDeviceOrientation = 'portrait';
+        let orientationChangeTimeout = null;
+        let performanceMode = 'auto'; // 'auto', 'performance', 'quality'
+        let frameSkipCounter = 0;
+        let targetFPS = 60;
 
         // Duck positioning fix variables
         let duckPositions = new Map(); // Track original duck positions
@@ -257,6 +275,76 @@
         // iOS permission handling variables
         let motionPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied', 'not-required'
         let isIOSDevice = false;
+
+        // Mobile performance detection and optimization
+        function detectDeviceCapabilities() {
+            // Detect low-end devices based on various factors
+            const userAgent = navigator.userAgent.toLowerCase();
+            const hardwareConcurrency = navigator.hardwareConcurrency || 2;
+            const deviceMemory = navigator.deviceMemory || 2;
+            
+            // Check for low-end device indicators
+            isLowEndDevice = (
+                hardwareConcurrency <= 2 ||
+                deviceMemory <= 2 ||
+                userAgent.includes('android 4') ||
+                userAgent.includes('android 5') ||
+                (userAgent.includes('iphone') && (userAgent.includes('iphone os 10') || userAgent.includes('iphone os 11')))
+            );
+            
+            console.log('Device capabilities detected:', {
+                isLowEndDevice,
+                hardwareConcurrency,
+                deviceMemory,
+                userAgent: userAgent.substring(0, 50) + '...'
+            });
+            
+            // Adjust performance settings based on device
+            if (isLowEndDevice) {
+                orientationUpdateThreshold = 33; // ~30fps for low-end devices
+                targetFPS = 30;
+                performanceMode = 'performance';
+                console.log('Low-end device detected, switching to performance mode');
+            }
+        }
+
+        function getOptimizedCameraConstraints() {
+            // Base constraints
+            let constraints = {
+                video: {
+                    facingMode: 'environment'
+                }
+            };
+            
+            // Optimize resolution based on device capabilities and orientation
+            if (isLowEndDevice) {
+                // Lower resolution for low-end devices
+                constraints.video.width = { ideal: 640, max: 1280 };
+                constraints.video.height = { ideal: 480, max: 720 };
+            } else {
+                // Higher resolution for capable devices
+                constraints.video.width = { ideal: 1280, max: 1920 };
+                constraints.video.height = { ideal: 720, max: 1080 };
+            }
+            
+            // Adjust for current orientation
+            if (currentDeviceOrientation === 'landscape') {
+                // Swap width/height for landscape
+                const tempWidth = constraints.video.width;
+                constraints.video.width = constraints.video.height;
+                constraints.video.height = tempWidth;
+            }
+            
+            // Frame rate optimization
+            if (performanceMode === 'performance') {
+                constraints.video.frameRate = { ideal: 30, max: 30 };
+            } else {
+                constraints.video.frameRate = { ideal: 60, max: 60 };
+            }
+            
+            console.log('Optimized camera constraints:', constraints);
+            return constraints;
+        }
 
         // Camera Functions
         async function requestCameraAccess() {
@@ -271,14 +359,8 @@
                     cameraBtn.disabled = true;
                 }
 
-                // Request camera access with rear camera preference
-                const constraints = {
-                    video: {
-                        facingMode: 'environment', // Prefer rear camera for AR
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
+                // Get optimized camera constraints
+                const constraints = getOptimizedCameraConstraints();
 
                 videoStream = await navigator.mediaDevices.getUserMedia(constraints);
                 cameraPermissionStatus = 'granted';
@@ -804,6 +886,9 @@
                 document.getElementById('smoothingControls').style.display = 'block';
                 document.getElementById('orientationDebug').style.display = 'block';
             }
+            
+            // Always show performance controls when AR is active
+            document.getElementById('performanceControls').style.display = 'block';
 
             // Update status based on what was initialized
             if (cameraInitialized && orientationInitialized) {
@@ -879,6 +964,7 @@
             document.getElementById('stopBtn').style.display = 'none';
             document.getElementById('testButtons').style.display = 'none';
             document.getElementById('smoothingControls').style.display = 'none';
+            document.getElementById('performanceControls').style.display = 'none';
 
             document.getElementById('status').textContent = 'Duck Hunt stopped. Click "Start AR Hunt" to begin again.';
         }
@@ -968,12 +1054,20 @@
         function handleDeviceOrientation(event) {
             if (!orientationActive || !camera) return;
 
-            // Throttle orientation updates to prevent excessive processing
+            // Enhanced throttling for mobile performance
             const now = Date.now();
             if (now - lastOrientationUpdate < orientationUpdateThreshold) {
                 return;
             }
             lastOrientationUpdate = now;
+
+            // Frame skipping for low-end devices
+            if (isLowEndDevice) {
+                frameSkipCounter++;
+                if (frameSkipCounter % 2 !== 0) {
+                    return; // Skip every other frame on low-end devices
+                }
+            }
 
             // Store raw orientation values
             const rawOrientation = {
@@ -1008,12 +1102,19 @@
             // Apply smoothed rotation to camera using requestAnimationFrame for smooth updates
             requestAnimationFrame(() => {
                 camera.setAttribute('rotation', `${pitch} ${yaw} ${roll}`);
+                
+                // Monitor performance
+                if (performanceMode === 'auto') {
+                    adjustPerformanceSettings();
+                }
             });
 
-            // Update debug display with smoothing information
+            // Update debug display with performance information
             const debugElement = document.getElementById('orientationDebug');
             if (debugElement && debugElement.style.display !== 'none') {
-                debugElement.textContent = `Smoothed: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}° | Camera: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)} | Smooth: ${smoothingFactor.toFixed(2)}`;
+                const perfInfo = isLowEndDevice ? ' [Low-End]' : '';
+                const modeInfo = ` [${performanceMode}]`;
+                debugElement.textContent = `Smoothed: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}° | Camera: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)} | Smooth: ${smoothingFactor.toFixed(2)} | Throttle: ${orientationUpdateThreshold}ms${perfInfo}${modeInfo}`;
             }
 
             // Debug logging (can be removed later)
@@ -1180,9 +1281,197 @@
             console.log('=== END DEBUG ===');
         }
 
+        // Orientation change handling
+        function handleOrientationChange() {
+            // Detect current orientation
+            const orientation = screen.orientation || screen.mozOrientation || screen.msOrientation;
+            let newOrientation = 'portrait';
+            
+            if (orientation) {
+                if (orientation.angle === 90 || orientation.angle === 270) {
+                    newOrientation = 'landscape';
+                }
+            } else {
+                // Fallback detection
+                if (window.innerWidth > window.innerHeight) {
+                    newOrientation = 'landscape';
+                }
+            }
+            
+            if (newOrientation !== currentDeviceOrientation) {
+                console.log(`Orientation changed from ${currentDeviceOrientation} to ${newOrientation}`);
+                currentDeviceOrientation = newOrientation;
+                
+                // Clear any existing timeout
+                if (orientationChangeTimeout) {
+                    clearTimeout(orientationChangeTimeout);
+                }
+                
+                // Debounce orientation changes to prevent rapid updates
+                orientationChangeTimeout = setTimeout(() => {
+                    handleOrientationChangeComplete(newOrientation);
+                }, 300);
+            }
+        }
+        
+        function handleOrientationChangeComplete(orientation) {
+            console.log(`Orientation change complete: ${orientation}`);
+            
+            // Update camera constraints if camera is active
+            if (cameraActive && videoStream) {
+                updateCameraForOrientation();
+            }
+            
+            // Adjust performance settings for orientation
+            if (orientation === 'landscape') {
+                // Landscape typically has better performance
+                if (performanceMode === 'auto' && !isLowEndDevice) {
+                    orientationUpdateThreshold = Math.max(16, orientationUpdateThreshold - 4);
+                }
+            } else {
+                // Portrait mode - be more conservative
+                if (performanceMode === 'auto') {
+                    orientationUpdateThreshold = Math.min(33, orientationUpdateThreshold + 4);
+                }
+            }
+            
+            // Update UI elements for new orientation if needed
+            updateUIForOrientation(orientation);
+        }
+        
+        async function updateCameraForOrientation() {
+            if (!cameraActive || !videoStream) return;
+            
+            try {
+                console.log('Updating camera for orientation change...');
+                
+                // Get new optimized constraints
+                const newConstraints = getOptimizedCameraConstraints();
+                
+                // Apply new constraints to existing stream
+                const videoTrack = videoStream.getVideoTracks()[0];
+                if (videoTrack && videoTrack.applyConstraints) {
+                    await videoTrack.applyConstraints(newConstraints.video);
+                    console.log('Camera constraints updated for orientation');
+                } else {
+                    console.log('Camera constraints update not supported, continuing with current settings');
+                }
+            } catch (error) {
+                console.warn('Failed to update camera constraints for orientation:', error);
+                // Continue with existing camera settings
+            }
+        }
+        
+        function updateUIForOrientation(orientation) {
+            // Adjust overlay positioning for different orientations
+            const overlay = document.getElementById('mainOverlay');
+            if (overlay) {
+                if (orientation === 'landscape') {
+                    overlay.style.top = '10px';
+                    overlay.style.left = '10px';
+                    overlay.style.right = '10px';
+                } else {
+                    overlay.style.top = '20px';
+                    overlay.style.left = '20px';
+                    overlay.style.right = '20px';
+                }
+            }
+        }
+
+        // Performance monitoring variables
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let lastFPSCheck = performance.now();
+
+        // Performance monitoring and adjustment
+        function adjustPerformanceSettings() {
+            // Monitor frame rate and adjust settings dynamically
+            const now = performance.now();
+            
+            frameCount++;
+            
+            // Check FPS every second
+            if (now - lastFPSCheck >= 1000) {
+                const currentFPS = frameCount;
+                frameCount = 0;
+                lastFPSCheck = now;
+                
+                console.log(`Current FPS: ${currentFPS}, Target: ${targetFPS}`);
+                
+                // Adjust settings if performance is poor
+                if (currentFPS < targetFPS * 0.8) {
+                    // Performance is poor, reduce quality
+                    if (orientationUpdateThreshold < 50) {
+                        orientationUpdateThreshold += 8;
+                        console.log(`Performance adjustment: increased throttling to ${orientationUpdateThreshold}ms`);
+                    }
+                    
+                    if (smoothingFactor < 0.9) {
+                        smoothingFactor += 0.1;
+                        console.log(`Performance adjustment: increased smoothing to ${smoothingFactor}`);
+                    }
+                } else if (currentFPS > targetFPS * 1.1 && !isLowEndDevice) {
+                    // Performance is good, can increase quality
+                    if (orientationUpdateThreshold > 16) {
+                        orientationUpdateThreshold -= 4;
+                        console.log(`Performance adjustment: decreased throttling to ${orientationUpdateThreshold}ms`);
+                    }
+                }
+            }
+            
+            lastFrameTime = now;
+        }
+
+        // Performance mode control functions
+        function setPerformanceMode(mode) {
+            performanceMode = mode;
+            console.log(`Performance mode set to: ${mode}`);
+            
+            // Apply mode-specific settings
+            switch (mode) {
+                case 'performance':
+                    orientationUpdateThreshold = 33; // 30fps
+                    targetFPS = 30;
+                    smoothingFactor = Math.max(0.8, smoothingFactor);
+                    break;
+                case 'quality':
+                    orientationUpdateThreshold = 16; // 60fps
+                    targetFPS = 60;
+                    smoothingFactor = Math.min(0.6, smoothingFactor);
+                    break;
+                case 'auto':
+                default:
+                    // Reset to device-appropriate defaults
+                    if (isLowEndDevice) {
+                        orientationUpdateThreshold = 33;
+                        targetFPS = 30;
+                    } else {
+                        orientationUpdateThreshold = 16;
+                        targetFPS = 60;
+                    }
+                    break;
+            }
+            
+            // Update camera constraints if camera is active
+            if (cameraActive && videoStream) {
+                updateCameraForOrientation();
+            }
+        }
+
         // Initialize permission checking when page loads
         document.addEventListener('DOMContentLoaded', function () {
             console.log('Page loaded, checking motion permission requirements...');
+            
+            // Detect device capabilities first
+            detectDeviceCapabilities();
+            
+            // Set up orientation change listeners
+            window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
+            window.addEventListener('resize', handleOrientationChange, { passive: true });
+            
+            // Initial orientation detection
+            handleOrientationChange();
+            
             checkMotionPermissionStatus();
 
             // Add debug button to console
