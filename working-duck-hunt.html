@@ -115,18 +115,19 @@
             document.querySelector('a-scene').appendChild(duck);
             activeDucks.push({ id: duckId, element: duck, position: { x, y, z } });
 
-            // Direction guidance
+            // Direction guidance - corrected for A-Frame coordinate system
             const degrees = (angle * 180 / Math.PI + 360) % 360;
             let direction = "around you";
-            if (degrees >= 315 || degrees < 45) direction = "in front of you";
-            else if (degrees >= 45 && degrees < 135) direction = "to your right";
-            else if (degrees >= 135 && degrees < 225) direction = "behind you";
-            else if (degrees >= 225 && degrees < 315) direction = "to your left";
+            // A-Frame uses: +X = right, -X = left, +Z = behind, -Z = front
+            if (degrees >= 315 || degrees < 45) direction = "to your right";      // +X axis
+            else if (degrees >= 45 && degrees < 135) direction = "behind you";    // +Z axis  
+            else if (degrees >= 135 && degrees < 225) direction = "to your left"; // -X axis
+            else if (degrees >= 225 && degrees < 315) direction = "in front of you"; // -Z axis
 
             document.getElementById('status').textContent =
-                `Duck #${duckCounter} spawned ${direction}! Turn around to find it. (${activeDucks.length} total)`;
+                `Duck #${duckCounter} spawned ${direction}! Position: (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}) (${activeDucks.length} total)`;
 
-            console.log(`Duck ${duckId} spawned at: ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)} (${direction})`);
+            console.log(`Duck ${duckId} spawned at: ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)} (${direction}) - Angle: ${degrees.toFixed(1)}°`);
         }
 
         function collectDuck(duckId) {
