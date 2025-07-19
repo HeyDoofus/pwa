@@ -112,6 +112,7 @@
             <br>
             <button class="button" onclick="testOrientation()">Test Orientation</button>
             <button class="button" onclick="testSmoothingTransition()">Test Smoothing</button>
+            <button class="button" onclick="debugCameraAndDucks()">Debug Info</button>
         </div>
     </div>
 
@@ -1027,10 +1028,38 @@
             console.log('Scene clicked - look for ducks to tap!');
         });
 
+        // Debug function to check camera and duck status
+        function debugCameraAndDucks() {
+            console.log('=== DEBUG INFO ===');
+            console.log('Camera element:', camera);
+            console.log('Camera position:', camera ? camera.getAttribute('position') : 'No camera');
+            console.log('Camera rotation:', camera ? camera.getAttribute('rotation') : 'No camera');
+            console.log('Active ducks:', activeDucks.length);
+            console.log('Duck positions map:', duckPositions);
+
+            activeDucks.forEach((duck, index) => {
+                console.log(`Duck ${index}:`, {
+                    id: duck.id,
+                    position: duck.element ? duck.element.getAttribute('position') : 'No element',
+                    visible: duck.element ? duck.element.getAttribute('visible') : 'No element',
+                    parent: duck.element ? duck.element.parentNode.tagName : 'No element'
+                });
+            });
+
+            console.log('Orientation active:', orientationActive);
+            console.log('Current orientation:', currentOrientation);
+            console.log('AR active:', arActive);
+            console.log('Camera active:', cameraActive);
+            console.log('=== END DEBUG ===');
+        }
+
         // Initialize permission checking when page loads
         document.addEventListener('DOMContentLoaded', function () {
             console.log('Page loaded, checking motion permission requirements...');
             checkMotionPermissionStatus();
+
+            // Add debug button to console
+            console.log('To debug camera and ducks, run: debugCameraAndDucks()');
         });
     </script>
 </body>
