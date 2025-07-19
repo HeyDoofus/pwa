@@ -56,6 +56,7 @@
     <div class="overlay">
         <h3>🦆 AR Duck Hunt</h3>
         <p id="status">Click "Start AR Hunt" to begin!</p>
+        <p id="orientationDebug" style="font-size: 12px; margin-top: 10px; display: none;"></p>
         <button class="button" onclick="startARHunt()" id="startBtn">Start AR Hunt</button>
         <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
         <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
@@ -66,27 +67,29 @@
             <button class="button" onclick="testDirection('BACK')">Test BACK</button>
             <button class="button" onclick="testDirection('LEFT')">Test LEFT</button>
             <button class="button" onclick="testDirection('RIGHT')">Test RIGHT</button>
+            <br>
+            <button class="button" onclick="testOrientation()">Test Orientation</button>
         </div>
     </div>
 
     <!-- A-Frame Scene -->
-    <a-scene id="arScene" background="color: #87CEEB" fog="type: linear; color: #87CEEB; near: 10; far: 100"></a-scene>
-    <!-- Camera with look controls -->
-    <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
-        wasd-controls="enabled: false" position="0 1.6 0">
-    </a-camera>
+    <a-scene id="arScene" background="color: #87CEEB" fog="type: linear; color: #87CEEB; near: 10; far: 100">
+        <!-- Camera with look controls -->
+        <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
+            wasd-controls="enabled: false" position="0 1.6 0">
+        </a-camera>
 
-    <!-- Ground plane for reference -->
-    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.8"></a-plane>
+        <!-- Ground plane for reference -->
+        <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.8"></a-plane>
 
-    <!-- Sky -->
-    <a-sky color="#87CEEB"></a-sky>
+        <!-- Sky -->
+        <a-sky color="#87CEEB"></a-sky>
 
-    <!-- No default duck - spawn them manually -->
+        <!-- No default duck - spawn them manually -->
 
-    <!-- Lighting -->
-    <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
-    <a-light type="directional" position="0 10 0" color="#ffffff" intensity="0.8"></a-light>
+        <!-- Lighting -->
+        <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
+        <a-light type="directional" position="0 10 0" color="#ffffff" intensity="0.8"></a-light>
     </a-scene>
 
     <script>
@@ -94,6 +97,11 @@
         let activeDucks = [];
         let arActive = false;
         let videoStream = null;
+        
+        // Device orientation tracking variables
+        let orientationActive = false;
+        let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
+        let camera = null;
 
         function spawnDuck() {
             duckCounter++;
@@ -258,7 +266,15 @@
             document.getElementById('testButtons').style.display = 'block';
 
             arActive = true;
-            document.getElementById('status').textContent = '🦆 Duck Hunt Active! Spawn ducks and turn around to find them!';
+            
+            // Initialize device orientation tracking
+            const orientationInitialized = initializeDeviceOrientation();
+            if (orientationInitialized) {
+                document.getElementById('status').textContent = '🦆 Duck Hunt Active with Motion Tracking! Move your device to look around!';
+                document.getElementById('orientationDebug').style.display = 'block';
+            } else {
+                document.getElementById('status').textContent = '🦆 Duck Hunt Active! Use touch controls to look around and spawn ducks!';
+            }
 
             // Auto-spawn first duck after 2 seconds
             setTimeout(() => {
@@ -270,6 +286,12 @@
 
         function stopARHunt() {
             arActive = false;
+
+            // Stop device orientation tracking
+            stopDeviceOrientation();
+            
+            // Hide debug info
+            document.getElementById('orientationDebug').style.display = 'none';
 
             // Clear ducks
             clearDucks();
@@ -288,6 +310,115 @@
         }
 
         // No auto-spawn - user controls when to spawn ducks
+
+        // Device orientation functions
+        function initializeDeviceOrientation() {
+            camera = document.querySelector('a-camera');
+            if (!camera) {
+                console.error('Camera element not found');
+                return false;
+            }
+            
+            // Check if device orientation is supported
+            if (!window.DeviceOrientationEvent) {
+                console.warn('Device orientation not supported');
+                return false;
+            }
+            
+            // Add device orientation event listener
+            window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
+            orientationActive = true;
+            
+            console.log('Device orientation tracking initialized');
+            return true;
+        }
+        
+        function handleDeviceOrientation(event) {
+            if (!orientationActive || !camera) return;
+            
+            // Store current orientation values
+            currentOrientation.alpha = event.alpha || 0;  // Compass heading (0-360°)
+            currentOrientation.beta = event.beta || 0;    // Front-back tilt (-180° to 180°)
+            currentOrientation.gamma = event.gamma || 0;  // Left-right tilt (-90° to 90°)
+            
+            // Convert orientation to A-Frame camera rotation
+            updateCameraRotation();
+        }
+        
+        function updateCameraRotation() {
+            if (!camera) return;
+            
+            const { alpha, beta, gamma } = currentOrientation;
+            
+            // Convert device orientation to A-Frame rotation
+            // A-Frame uses degrees and follows right-handed coordinate system
+            // Y-axis rotation (yaw) - compass heading
+            const yaw = -alpha; // Negative to match expected rotation direction
+            
+            // X-axis rotation (pitch) - front-back tilt
+            const pitch = beta;
+            
+            // Z-axis rotation (roll) - left-right tilt
+            const roll = -gamma; // Negative to match expected rotation direction
+            
+            // Apply rotation to camera
+            camera.setAttribute('rotation', `${pitch} ${yaw} ${roll}`);
+            
+            // Update debug display
+            const debugElement = document.getElementById('orientationDebug');
+            if (debugElement && debugElement.style.display !== 'none') {
+                debugElement.textContent = `Orientation: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}° | Camera: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)}`;
+            }
+            
+            // Debug logging (can be removed later)
+            if (Math.random() < 0.01) { // Log only 1% of the time to avoid spam
+                console.log(`Orientation: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
+                console.log(`Camera rotation: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)}`);
+            }
+        }
+        
+        function stopDeviceOrientation() {
+            if (orientationActive) {
+                window.removeEventListener('deviceorientation', handleDeviceOrientation);
+                orientationActive = false;
+                console.log('Device orientation tracking stopped');
+            }
+        }
+        
+        function testOrientation() {
+            if (!camera) {
+                document.getElementById('status').textContent = 'Camera not found! Start AR Hunt first.';
+                return;
+            }
+            
+            // Simulate device orientation changes to test camera rotation
+            const testOrientations = [
+                { alpha: 0, beta: 0, gamma: 0, name: 'Level' },
+                { alpha: 90, beta: 0, gamma: 0, name: 'Turn Right' },
+                { alpha: 180, beta: 0, gamma: 0, name: 'Turn Around' },
+                { alpha: 270, beta: 0, gamma: 0, name: 'Turn Left' },
+                { alpha: 0, beta: 30, gamma: 0, name: 'Look Up' },
+                { alpha: 0, beta: -30, gamma: 0, name: 'Look Down' }
+            ];
+            
+            let testIndex = 0;
+            const testInterval = setInterval(() => {
+                if (testIndex >= testOrientations.length) {
+                    clearInterval(testInterval);
+                    document.getElementById('status').textContent = 'Orientation test complete!';
+                    return;
+                }
+                
+                const test = testOrientations[testIndex];
+                currentOrientation = { alpha: test.alpha, beta: test.beta, gamma: test.gamma };
+                updateCameraRotation();
+                
+                document.getElementById('status').textContent = `Testing: ${test.name} (${test.alpha}°, ${test.beta}°, ${test.gamma}°)`;
+                console.log(`Test ${testIndex + 1}: ${test.name} - Camera rotation applied`);
+                
+                testIndex++;
+            }, 2000);
+        }
 
         // Handle scene clicks
         document.querySelector('a-scene').addEventListener('click', function (event) {
