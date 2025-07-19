@@ -117,11 +117,12 @@
 
     <!-- A-Frame Scene -->
     <a-scene id="arScene" embedded style="height: 100vh; width: 100vw;"
-        fog="type: linear; color: #87CEEB; near: 10; far: 100"></a-scene>
-    <!-- Camera with look controls -->
-    <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
-        wasd-controls="enabled: false" position="0 1.6 0">
-    </a-camera>
+        fog="type: linear; color: #87CEEB; near: 10; far: 100">
+        <!-- Camera with look controls -->
+        <a-camera id="arCamera" look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
+            wasd-controls="enabled: false" position="0 1.6 0">
+        </a-camera>
+    </a-scene>
 
     <!-- Ground plane for reference (semi-transparent for AR) -->
     <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.3"></a-plane>
@@ -154,6 +155,9 @@
         let smoothingFactor = 0.8; // Higher values = more smoothing (0.0 to 1.0)
         let lastOrientationUpdate = 0;
         let orientationUpdateThreshold = 16; // ~60fps (16ms between updates)
+
+        // Duck positioning fix variables
+        let duckPositions = new Map(); // Track original duck positions
 
         // iOS permission handling variables
         let motionPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied', 'not-required'
@@ -471,7 +475,7 @@
             const duck = document.createElement('a-entity');
             duck.setAttribute('id', duckId);
 
-            // Random position around user
+            // Random position around user in WORLD SPACE (not relative to camera)
             const distance = 2 + Math.random() * 4; // 2-6 meters
             const angle = Math.random() * Math.PI * 2; // 360 degrees
             const height = 1 + Math.random() * 3; // 1-4 meters high
@@ -480,10 +484,18 @@
             const y = height;
             const z = Math.sin(angle) * distance;
 
+            // Store original position for reference
+            duckPositions.set(duckId, { x, y, z });
+
+            // Set position in world coordinates (not relative to camera)
             duck.setAttribute('position', `${x} ${y} ${z}`);
             duck.setAttribute('scale', '0.4 0.4 0.4');
             duck.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 5000');
             duck.setAttribute('animation__float', `property: position; to: ${x} ${y + 0.3} ${z}; dir: alternate; loop: true; dur: 2500; easing: easeInOutSine`);
+
+            // Ensure duck is not attached to camera
+            duck.setAttribute('look-controls', 'enabled: false');
+            duck.setAttribute('wasd-controls', 'enabled: false');
 
             // Duck components
             duck.innerHTML = `
@@ -501,12 +513,20 @@
                 e.stopPropagation();
             });
 
-            // Add to scene
+            // Add touch handler for mobile
+            duck.addEventListener('touchstart', function (e) {
+                collectDuck(duckId);
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            // Add to scene (not to camera!)
             document.querySelector('a-scene').appendChild(duck);
             activeDucks.push({ id: duckId, element: duck, position: { x, y, z } });
 
             // Direction guidance - using actual coordinates instead of angle
             let direction = "around you";
+            const degrees = (angle * 180 / Math.PI + 360) % 360;
 
             // Use the actual X and Z coordinates to determine direction
             if (Math.abs(x) > Math.abs(z)) {
@@ -548,6 +568,9 @@
                 activeDucks.splice(duckIndex, 1);
             }
 
+            // Clear stored position
+            duckPositions.delete(duckId);
+
             // Auto-spawn new duck
             setTimeout(() => {
                 if (activeDucks.length < 3) {
@@ -562,7 +585,7 @@
             duckCounter++;
             const duckId = `test${direction}${duckCounter}`;
 
-            // Define test positions for each direction
+            // Define test positions for each direction in WORLD SPACE
             const positions = {
                 'FRONT': { x: 0, z: -3 },   // Should be in front of you
                 'BACK': { x: 0, z: 3 },    // Should be behind you  
@@ -577,6 +600,13 @@
             duck.setAttribute('position', `${pos.x} 2 ${pos.z}`);
             duck.setAttribute('scale', '0.5 0.5 0.5'); // Slightly bigger for testing
             duck.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 4000');
+
+            // Ensure duck is in world space, not camera space
+            duck.setAttribute('look-controls', 'enabled: false');
+            duck.setAttribute('wasd-controls', 'enabled: false');
+
+            // Store position for reference
+            duckPositions.set(duckId, { x: pos.x, y: 2, z: pos.z });
 
             // Make test duck extra bright
             duck.innerHTML = `
@@ -595,11 +625,19 @@
                 e.stopPropagation();
             });
 
+            duck.addEventListener('touchstart', function (e) {
+                document.getElementById('status').textContent = `✅ ${direction} duck touched! Test successful.`;
+                collectDuck(duckId);
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            // Add to scene (not camera!)
             document.querySelector('a-scene').appendChild(duck);
             activeDucks.push({ id: duckId, element: duck, position: pos });
 
             document.getElementById('status').textContent =
-                `🎯 TEST: ${direction} duck at (${pos.x}, 2, ${pos.z}) - Should appear ${direction.toLowerCase()}. Turn around to find it!`;
+                `🎯 TEST: ${direction} duck at (${pos.x}, 2, ${pos.z}) - Should appear ${direction.toLowerCase()}. Turn your device to find it!`;
 
             console.log(`TEST: ${direction} duck spawned at: ${pos.x}, 2, ${pos.z}`);
         }
@@ -609,8 +647,13 @@
                 if (duck.element && duck.element.parentNode) {
                     duck.element.parentNode.removeChild(duck.element);
                 }
+                // Clear stored position
+                if (duck.id) {
+                    duckPositions.delete(duck.id);
+                }
             });
             activeDucks = [];
+            duckPositions.clear(); // Clear all stored positions
             document.getElementById('status').textContent = 'All ducks cleared! Spawn new ones to hunt.';
         }
 
@@ -787,9 +830,19 @@
 
         // Device orientation functions
         function initializeDeviceOrientation() {
-            camera = document.querySelector('a-camera');
+            // Wait for A-Frame to be ready and get camera reference
+            camera = document.querySelector('#arCamera');
             if (!camera) {
-                console.error('Camera element not found');
+                console.error('Camera element not found - waiting for A-Frame to initialize');
+                // Try again after a short delay
+                setTimeout(() => {
+                    camera = document.querySelector('#arCamera');
+                    if (!camera) {
+                        console.error('Camera element still not found after delay');
+                    } else {
+                        console.log('Camera element found after delay:', camera);
+                    }
+                }, 1000);
                 return false;
             }
 
