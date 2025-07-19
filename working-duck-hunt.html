@@ -72,6 +72,7 @@
         <p id="orientationDebug" style="font-size: 12px; margin-top: 10px; display: none;"></p>
         <button class="button" onclick="startARHunt()" id="startBtn">Start AR Hunt</button>
         <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable Motion Sensors</button>
+        <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable Camera</button>
         <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
         <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
         <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop AR</button>
@@ -95,17 +96,14 @@
     </div>
 
     <!-- A-Frame Scene -->
-    <a-scene id="arScene" background="color: #87CEEB" fog="type: linear; color: #87CEEB; near: 10; far: 100">
+    <a-scene id="arScene" background="color: transparent" fog="type: linear; color: #87CEEB; near: 10; far: 100">
         <!-- Camera with look controls -->
         <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
             wasd-controls="enabled: false" position="0 1.6 0">
         </a-camera>
 
-        <!-- Ground plane for reference -->
-        <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.8"></a-plane>
-
-        <!-- Sky -->
-        <a-sky color="#87CEEB"></a-sky>
+        <!-- Ground plane for reference (semi-transparent for AR) -->
+        <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.3"></a-plane>
 
         <!-- No default duck - spawn them manually -->
 
@@ -184,6 +182,7 @@
         function handleCameraError(error) {
             let message = 'Camera access is required for AR features.';
             let userFriendlyMessage = '';
+            let showRetryButton = true;
             
             if (error.name === 'NotAllowedError') {
                 message = 'Camera permission denied';
@@ -191,12 +190,13 @@
                     'For the best AR experience, please:<br>' +
                     '1. Click the camera icon in your browser\'s address bar<br>' +
                     '2. Allow camera access for this website<br>' +
-                    '3. Refresh the page and try again';
+                    '3. Click "Enable Camera" to try again';
             } else if (error.name === 'NotFoundError') {
                 message = 'No camera found';
                 userFriendlyMessage = '📷 No camera found on this device.<br>' +
                     'AR camera features are not available.<br>' +
                     'You can still play with virtual background.';
+                showRetryButton = false;
             } else if (error.name === 'NotReadableError') {
                 message = 'Camera is being used by another application';
                 userFriendlyMessage = '📷 Camera is busy.<br>' +
@@ -219,6 +219,12 @@
             
             console.error('Camera error:', message);
             document.getElementById('status').innerHTML = userFriendlyMessage;
+            
+            // Show retry button if appropriate
+            if (showRetryButton) {
+                document.getElementById('cameraBtn').style.display = 'inline-block';
+                document.getElementById('cameraBtn').textContent = 'Retry Camera Access';
+            }
         }
         
         async function requestCameraAccessFallback() {
