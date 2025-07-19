@@ -46,8 +46,12 @@
         <h3>🦆 Working Duck Hunt</h3>
         <p id="status">Click "Spawn Duck" to start hunting! Turn around to find them.</p>
         <button class="button" onclick="spawnDuck()">Spawn Duck</button>
-        <button class="button" onclick="spawnTestDucks()">Test 4 Directions</button>
         <button class="button" onclick="clearDucks()">Clear All</button>
+        <br>
+        <button class="button" onclick="testDirection('FRONT')">Test FRONT</button>
+        <button class="button" onclick="testDirection('BACK')">Test BACK</button>
+        <button class="button" onclick="testDirection('LEFT')">Test LEFT</button>
+        <button class="button" onclick="testDirection('RIGHT')">Test RIGHT</button>
     </div>
 
     <!-- Simple A-Frame Scene -->
@@ -167,51 +171,52 @@
             }, 1500);
         }
 
-        function spawnTestDucks() {
+        function testDirection(direction) {
             clearDucks();
-
-            // Spawn 4 ducks in cardinal directions to test coordinate system
-            const testPositions = [
-                { x: 3, z: 0, name: "RIGHT" },    // Should be to your right
-                { x: -3, z: 0, name: "LEFT" },   // Should be to your left  
-                { x: 0, z: 3, name: "BEHIND" },  // Should be behind you
-                { x: 0, z: -3, name: "FRONT" }   // Should be in front of you
-            ];
-
-            testPositions.forEach((pos, index) => {
-                setTimeout(() => {
-                    duckCounter++;
-                    const duckId = `test${duckCounter}`;
-
-                    const duck = document.createElement('a-entity');
-                    duck.setAttribute('id', duckId);
-                    duck.setAttribute('position', `${pos.x} 2 ${pos.z}`);
-                    duck.setAttribute('scale', '0.4 0.4 0.4');
-                    duck.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 5000');
-
-                    duck.innerHTML = `
-                        <a-sphere color="#ffeb3b" radius="1" position="0 0 0" scale="1 0.8 1.2"></a-sphere>
-                        <a-sphere color="#ffeb3b" radius="0.6" position="0 0.7 0.3"></a-sphere>
-                        <a-cone color="#ff9800" radius-bottom="0.15" radius-top="0.05" height="0.3" position="0 0.7 0.8" rotation="90 0 0"></a-cone>
-                        <a-sphere color="#000000" radius="0.08" position="-0.15 0.8 0.55"></a-sphere>
-                        <a-sphere color="#000000" radius="0.08" position="0.15 0.8 0.55"></a-sphere>
-                        <a-sphere color="#ffff00" radius="2" position="0 0 0" material="color: #ffff00; opacity: 0.3; transparent: true"></a-sphere>
-                    `;
-
-                    duck.addEventListener('click', function (e) {
-                        collectDuck(duckId);
-                        e.stopPropagation();
-                    });
-
-                    document.querySelector('a-scene').appendChild(duck);
-                    activeDucks.push({ id: duckId, element: duck, position: pos });
-
-                    document.getElementById('status').textContent =
-                        `TEST: ${pos.name} duck at (${pos.x}, 2, ${pos.z}) - Should be ${pos.name.toLowerCase()}`;
-
-                    console.log(`TEST Duck ${pos.name} at: ${pos.x}, 2, ${pos.z}`);
-                }, index * 500);
+            
+            duckCounter++;
+            const duckId = `test${direction}${duckCounter}`;
+            
+            // Define test positions for each direction
+            const positions = {
+                'FRONT': { x: 0, z: -3 },   // Should be in front of you
+                'BACK': { x: 0, z: 3 },    // Should be behind you  
+                'LEFT': { x: -3, z: 0 },   // Should be to your left
+                'RIGHT': { x: 3, z: 0 }    // Should be to your right
+            };
+            
+            const pos = positions[direction];
+            
+            const duck = document.createElement('a-entity');
+            duck.setAttribute('id', duckId);
+            duck.setAttribute('position', `${pos.x} 2 ${pos.z}`);
+            duck.setAttribute('scale', '0.5 0.5 0.5'); // Slightly bigger for testing
+            duck.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 4000');
+            
+            // Make test duck extra bright
+            duck.innerHTML = `
+                <a-sphere color="#ffeb3b" radius="1" position="0 0 0" scale="1 0.8 1.2"></a-sphere>
+                <a-sphere color="#ffeb3b" radius="0.6" position="0 0.7 0.3"></a-sphere>
+                <a-cone color="#ff9800" radius-bottom="0.15" radius-top="0.05" height="0.3" position="0 0.7 0.8" rotation="90 0 0"></a-cone>
+                <a-sphere color="#000000" radius="0.08" position="-0.15 0.8 0.55"></a-sphere>
+                <a-sphere color="#000000" radius="0.08" position="0.15 0.8 0.55"></a-sphere>
+                <a-sphere color="#ffff00" radius="2.5" position="0 0 0" material="color: #ffff00; opacity: 0.5; transparent: true"></a-sphere>
+                <a-sphere color="#ffffff" radius="2.2" position="0 0 0" material="color: #ffffff; opacity: 0.3; transparent: true"></a-sphere>
+            `;
+            
+            duck.addEventListener('click', function (e) {
+                document.getElementById('status').textContent = `✅ ${direction} duck clicked! Test successful.`;
+                collectDuck(duckId);
+                e.stopPropagation();
             });
+            
+            document.querySelector('a-scene').appendChild(duck);
+            activeDucks.push({ id: duckId, element: duck, position: pos });
+            
+            document.getElementById('status').textContent = 
+                `🎯 TEST: ${direction} duck at (${pos.x}, 2, ${pos.z}) - Should appear ${direction.toLowerCase()}. Turn around to find it!`;
+            
+            console.log(`TEST: ${direction} duck spawned at: ${pos.x}, 2, ${pos.z}`);
         }
 
         function clearDucks() {
