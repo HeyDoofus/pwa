@@ -20,7 +20,7 @@
             top: 20px;
             left: 20px;
             right: 20px;
-            z-index: 1003;
+            z-index: 10;
             background: rgba(0, 0, 0, 0.8);
             padding: 15px;
             border-radius: 10px;
@@ -47,17 +47,31 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            z-index: -1;
+            z-index: 1;
             display: none;
         }
 
-        /* Make A-Frame canvas transparent */
-        #arScene canvas {
+        /* Make A-Frame canvas transparent and layered above video */
+        #arScene {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 2 !important;
             background: transparent !important;
+            background-color: transparent !important;
         }
 
-        #arScene {
+        #arScene canvas {
             background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        /* Ensure A-Frame renderer is transparent */
+        a-scene {
+            background: transparent !important;
+            background-color: transparent !important;
         }
     </style>
 </head>
@@ -71,18 +85,24 @@
         <p id="status">Click "Start AR Hunt" to begin!</p>
         <p id="orientationDebug" style="font-size: 12px; margin-top: 10px; display: none;"></p>
         <button class="button" onclick="startARHunt()" id="startBtn">Start AR Hunt</button>
-        <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable Motion Sensors</button>
-        <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable Camera</button>
+        <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable
+            Motion Sensors</button>
+        <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable
+            Camera</button>
         <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
         <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
         <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop AR</button>
         <br>
         <div id="smoothingControls" style="display:none; margin: 10px 0;">
             <label style="font-size: 12px;">Camera Smoothing:</label>
-            <button class="button" onclick="setSmoothingFactor(0.9)" style="font-size: 12px; padding: 5px 10px;">High</button>
-            <button class="button" onclick="setSmoothingFactor(0.8)" style="font-size: 12px; padding: 5px 10px;">Medium</button>
-            <button class="button" onclick="setSmoothingFactor(0.6)" style="font-size: 12px; padding: 5px 10px;">Low</button>
-            <button class="button" onclick="setSmoothingFactor(0.0)" style="font-size: 12px; padding: 5px 10px;">Off</button>
+            <button class="button" onclick="setSmoothingFactor(0.9)"
+                style="font-size: 12px; padding: 5px 10px;">High</button>
+            <button class="button" onclick="setSmoothingFactor(0.8)"
+                style="font-size: 12px; padding: 5px 10px;">Medium</button>
+            <button class="button" onclick="setSmoothingFactor(0.6)"
+                style="font-size: 12px; padding: 5px 10px;">Low</button>
+            <button class="button" onclick="setSmoothingFactor(0.0)"
+                style="font-size: 12px; padding: 5px 10px;">Off</button>
         </div>
         <div id="testButtons" style="display:none;">
             <button class="button" onclick="testDirection('FRONT')">Test FRONT</button>
@@ -96,20 +116,21 @@
     </div>
 
     <!-- A-Frame Scene -->
-    <a-scene id="arScene" background="color: transparent" fog="type: linear; color: #87CEEB; near: 10; far: 100">
-        <!-- Camera with look controls -->
-        <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
-            wasd-controls="enabled: false" position="0 1.6 0">
-        </a-camera>
+    <a-scene id="arScene" embedded style="height: 100vh; width: 100vw;"
+        fog="type: linear; color: #87CEEB; near: 10; far: 100"></a-scene>
+    <!-- Camera with look controls -->
+    <a-camera look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true"
+        wasd-controls="enabled: false" position="0 1.6 0">
+    </a-camera>
 
-        <!-- Ground plane for reference (semi-transparent for AR) -->
-        <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.3"></a-plane>
+    <!-- Ground plane for reference (semi-transparent for AR) -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#90EE90" opacity="0.3"></a-plane>
 
-        <!-- No default duck - spawn them manually -->
+    <!-- No default duck - spawn them manually -->
 
-        <!-- Lighting -->
-        <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
-        <a-light type="directional" position="0 10 0" color="#ffffff" intensity="0.8"></a-light>
+    <!-- Lighting -->
+    <a-light type="ambient" color="#ffffff" intensity="1"></a-light>
+    <a-light type="directional" position="0 10 0" color="#ffffff" intensity="0.8"></a-light>
     </a-scene>
 
     <script>
@@ -117,23 +138,23 @@
         let activeDucks = [];
         let arActive = false;
         let videoStream = null;
-        
+
         // Camera-related variables
         let cameraActive = false;
         let cameraVideo = null;
         let cameraPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied'
-        
+
         // Device orientation tracking variables
         let orientationActive = false;
         let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
         let smoothedOrientation = { alpha: 0, beta: 0, gamma: 0 };
         let camera = null;
-        
+
         // Orientation smoothing configuration
         let smoothingFactor = 0.8; // Higher values = more smoothing (0.0 to 1.0)
         let lastOrientationUpdate = 0;
         let orientationUpdateThreshold = 16; // ~60fps (16ms between updates)
-        
+
         // iOS permission handling variables
         let motionPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied', 'not-required'
         let isIOSDevice = false;
@@ -141,7 +162,7 @@
         // Camera Functions
         async function requestCameraAccess() {
             console.log('Requesting camera access...');
-            
+
             try {
                 // Update UI to show requesting state
                 document.getElementById('status').textContent = 'Requesting camera access for AR...';
@@ -150,7 +171,7 @@
                     cameraBtn.textContent = 'Requesting...';
                     cameraBtn.disabled = true;
                 }
-                
+
                 // Request camera access with rear camera preference
                 const constraints = {
                     video: {
@@ -159,46 +180,56 @@
                         height: { ideal: 720 }
                     }
                 };
-                
+
                 videoStream = await navigator.mediaDevices.getUserMedia(constraints);
                 cameraPermissionStatus = 'granted';
-                
+
                 // Set up video element
                 cameraVideo = document.getElementById('cameraVideo');
                 if (cameraVideo) {
                     cameraVideo.srcObject = videoStream;
                     cameraVideo.style.display = 'block';
+                    cameraVideo.style.zIndex = '-1';
                     cameraActive = true;
-                    
+
+                    // Debug: Log video element properties
+                    console.log('Video element setup:', {
+                        display: cameraVideo.style.display,
+                        zIndex: cameraVideo.style.zIndex,
+                        videoWidth: cameraVideo.videoWidth,
+                        videoHeight: cameraVideo.videoHeight,
+                        readyState: cameraVideo.readyState
+                    });
+
                     // Hide camera button on success
                     cameraBtn.style.display = 'none';
                     cameraBtn.disabled = false;
-                    
+
                     document.getElementById('status').textContent = '✅ Camera access granted! AR experience ready.';
                     console.log('Camera access granted and video stream started');
                     return true;
                 } else {
                     throw new Error('Camera video element not found');
                 }
-                
+
             } catch (error) {
                 console.error('Camera access error:', error);
                 cameraPermissionStatus = 'denied';
-                
+
                 // Re-enable button on error
                 const cameraBtn = document.getElementById('cameraBtn');
                 cameraBtn.disabled = false;
-                
+
                 handleCameraError(error);
                 return false;
             }
         }
-        
+
         function handleCameraError(error) {
             let message = 'Camera access is required for AR features.';
             let userFriendlyMessage = '';
             let showRetryButton = true;
-            
+
             if (error.name === 'NotAllowedError') {
                 message = 'Camera permission denied';
                 userFriendlyMessage = '📷 Camera access denied.<br>' +
@@ -220,7 +251,7 @@
                 message = 'Camera constraints not supported';
                 userFriendlyMessage = '📷 Camera settings not supported.<br>' +
                     'Trying with default camera settings...';
-                
+
                 // Try again with less restrictive constraints
                 setTimeout(() => {
                     requestCameraAccessFallback();
@@ -231,50 +262,50 @@
                 userFriendlyMessage = '📷 Camera access failed.<br>' +
                     'Please check your camera permissions and try again.';
             }
-            
+
             console.error('Camera error:', message);
             document.getElementById('status').innerHTML = userFriendlyMessage;
-            
+
             // Show retry button if appropriate
             if (showRetryButton) {
                 document.getElementById('cameraBtn').style.display = 'inline-block';
                 document.getElementById('cameraBtn').textContent = 'Retry Camera Access';
             }
         }
-        
+
         async function requestCameraAccessFallback() {
             console.log('Trying camera access with fallback constraints...');
-            
+
             try {
                 // Try with basic constraints
                 const basicConstraints = {
                     video: true
                 };
-                
+
                 videoStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
                 cameraPermissionStatus = 'granted';
-                
+
                 cameraVideo = document.getElementById('cameraVideo');
                 if (cameraVideo) {
                     cameraVideo.srcObject = videoStream;
                     cameraVideo.style.display = 'block';
                     cameraActive = true;
-                    
+
                     // Hide camera button on success
                     document.getElementById('cameraBtn').style.display = 'none';
-                    
+
                     document.getElementById('status').textContent = '✅ Camera access granted with basic settings!';
                     console.log('Camera access granted with fallback constraints');
                     return true;
                 }
-                
+
             } catch (error) {
                 console.error('Fallback camera access failed:', error);
                 handleCameraError(error);
                 return false;
             }
         }
-        
+
         function stopCamera() {
             if (videoStream) {
                 // Stop all tracks in the stream
@@ -284,68 +315,68 @@
                 });
                 videoStream = null;
             }
-            
+
             if (cameraVideo) {
                 cameraVideo.style.display = 'none';
                 cameraVideo.srcObject = null;
             }
-            
+
             cameraActive = false;
             console.log('Camera stopped and resources released');
         }
-        
+
         function checkCameraSupport() {
             // Check if getUserMedia is supported
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.warn('getUserMedia not supported');
                 return false;
             }
-            
+
             return true;
         }
 
         // iOS Detection and Permission Functions
         function detectIOSDevice() {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            
+
             // Check for iOS devices (iPhone, iPad, iPod)
             const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
-            
+
             // Check for iOS 13+ by looking for DeviceOrientationEvent.requestPermission
-            const requiresPermission = typeof DeviceOrientationEvent !== 'undefined' && 
-                                     typeof DeviceOrientationEvent.requestPermission === 'function';
-            
+            const requiresPermission = typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function';
+
             isIOSDevice = isIOS && requiresPermission;
-            
+
             console.log(`Device detection: iOS=${isIOS}, RequiresPermission=${requiresPermission}, isIOSDevice=${isIOSDevice}`);
-            
+
             return isIOSDevice;
         }
 
         async function requestMotionPermissions() {
             console.log('Requesting motion sensor permissions...');
-            
+
             try {
                 // Update UI to show requesting state
                 document.getElementById('status').textContent = 'Requesting motion sensor permissions...';
                 document.getElementById('permissionBtn').textContent = 'Requesting...';
                 document.getElementById('permissionBtn').disabled = true;
-                
+
                 // Request DeviceOrientationEvent permission
                 let orientationPermission = 'granted';
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     orientationPermission = await DeviceOrientationEvent.requestPermission();
                     console.log('DeviceOrientationEvent permission:', orientationPermission);
                 }
-                
+
                 // Request DeviceMotionEvent permission if available
                 let motionPermission = 'granted';
-                if (typeof DeviceMotionEvent !== 'undefined' && 
+                if (typeof DeviceMotionEvent !== 'undefined' &&
                     typeof DeviceMotionEvent.requestPermission === 'function') {
                     motionPermission = await DeviceMotionEvent.requestPermission();
                     console.log('DeviceMotionEvent permission:', motionPermission);
                 }
-                
+
                 // Check if both permissions are granted
                 if (orientationPermission === 'granted' && motionPermission === 'granted') {
                     motionPermissionStatus = 'granted';
@@ -354,7 +385,7 @@
                     motionPermissionStatus = 'denied';
                     handlePermissionDenied();
                 }
-                
+
             } catch (error) {
                 console.error('Error requesting motion permissions:', error);
                 motionPermissionStatus = 'denied';
@@ -364,12 +395,12 @@
 
         function handlePermissionGranted() {
             console.log('Motion sensor permissions granted');
-            
+
             // Update UI
             document.getElementById('status').textContent = '✅ Motion sensors enabled! You can now start AR Hunt.';
             document.getElementById('permissionBtn').style.display = 'none';
             document.getElementById('startBtn').style.display = 'inline-block';
-            
+
             // Show success message briefly
             setTimeout(() => {
                 if (!arActive) {
@@ -380,20 +411,20 @@
 
         function handlePermissionDenied() {
             console.log('Motion sensor permissions denied');
-            
+
             // Update UI with clear explanation and retry option
-            document.getElementById('status').innerHTML = 
+            document.getElementById('status').innerHTML =
                 '❌ Motion sensor access denied.<br>' +
                 'For the best AR experience, please:<br>' +
                 '1. Go to Settings > Safari > Motion & Orientation Access<br>' +
                 '2. Enable motion sensors for this website<br>' +
                 '3. Refresh the page and try again';
-            
+
             // Re-enable and update permission button
             document.getElementById('permissionBtn').textContent = 'Retry Motion Permissions';
             document.getElementById('permissionBtn').disabled = false;
             document.getElementById('permissionBtn').style.display = 'inline-block';
-            
+
             // Also show start button for fallback mode
             document.getElementById('startBtn').style.display = 'inline-block';
             document.getElementById('startBtn').textContent = 'Start Without Motion';
@@ -401,16 +432,16 @@
 
         function handlePermissionError(error) {
             console.error('Permission request error:', error);
-            
+
             // Update UI with error message
-            document.getElementById('status').textContent = 
+            document.getElementById('status').textContent =
                 '⚠️ Error requesting motion permissions. You can still play with manual controls.';
-            
+
             // Re-enable permission button for retry
             document.getElementById('permissionBtn').textContent = 'Retry Motion Permissions';
             document.getElementById('permissionBtn').disabled = false;
             document.getElementById('permissionBtn').style.display = 'inline-block';
-            
+
             // Show start button for fallback
             document.getElementById('startBtn').style.display = 'inline-block';
             document.getElementById('startBtn').textContent = 'Start Without Motion';
@@ -420,7 +451,7 @@
             // This function checks if we need to show permission UI on page load
             if (detectIOSDevice()) {
                 // iOS 13+ device detected, show permission button
-                document.getElementById('status').textContent = 
+                document.getElementById('status').textContent =
                     '📱 iOS device detected. Motion sensor permissions required for AR tracking.';
                 document.getElementById('startBtn').style.display = 'none';
                 document.getElementById('permissionBtn').style.display = 'inline-block';
@@ -587,15 +618,36 @@
             // Show A-Frame scene
             document.getElementById('arScene').style.display = 'block';
 
+            // Ensure A-Frame scene has transparent background
+            const scene = document.querySelector('a-scene');
+            if (scene) {
+                // Wait for scene to be ready
+                scene.addEventListener('loaded', () => {
+                    // Set renderer to have transparent background
+                    if (scene.renderer) {
+                        scene.renderer.setClearColor(0x000000, 0); // Black with 0 alpha
+                        scene.renderer.domElement.style.background = 'transparent';
+                    }
+                });
+
+                // If scene is already loaded
+                if (scene.hasLoaded) {
+                    if (scene.renderer) {
+                        scene.renderer.setClearColor(0x000000, 0); // Black with 0 alpha
+                        scene.renderer.domElement.style.background = 'transparent';
+                    }
+                }
+            }
+
             // Show controls
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('spawnBtn').style.display = 'inline-block';
             document.getElementById('clearBtn').style.display = 'inline-block';
             document.getElementById('stopBtn').style.display = 'inline-block';
             document.getElementById('testButtons').style.display = 'block';
-            
+
             arActive = true;
-            
+
             // Initialize camera for AR background
             let cameraInitialized = false;
             if (checkCameraSupport()) {
@@ -605,16 +657,16 @@
                 console.warn('Camera not supported, using virtual background');
                 document.getElementById('status').textContent = 'Camera not supported, using virtual background';
             }
-            
+
             // Initialize device orientation tracking
             const orientationInitialized = initializeDeviceOrientation();
-            
+
             // Show smoothing controls if motion tracking is active
             if (orientationInitialized) {
                 document.getElementById('smoothingControls').style.display = 'block';
                 document.getElementById('orientationDebug').style.display = 'block';
             }
-            
+
             // Update status based on what was initialized
             if (cameraInitialized && orientationInitialized) {
                 document.getElementById('status').textContent = '🦆 Full AR Hunt Active! Camera + Motion Tracking enabled!';
@@ -646,10 +698,10 @@
 
             // Stop camera
             stopCamera();
-            
+
             // Stop device orientation tracking
             stopDeviceOrientation();
-            
+
             // Hide debug info
             document.getElementById('orientationDebug').style.display = 'none';
 
@@ -676,14 +728,14 @@
                 document.getElementById('startBtn').textContent = 'Start AR Hunt';
                 document.getElementById('permissionBtn').style.display = 'none';
             }
-            
+
             // Show camera button if camera access was denied
             if (cameraPermissionStatus === 'denied') {
                 document.getElementById('cameraBtn').style.display = 'inline-block';
             } else {
                 document.getElementById('cameraBtn').style.display = 'none';
             }
-            
+
             document.getElementById('spawnBtn').style.display = 'none';
             document.getElementById('clearBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'none';
@@ -705,28 +757,28 @@
                     target += 360;
                 }
             }
-            
+
             // Apply smoothing interpolation
             const smoothed = current * factor + target * (1 - factor);
-            
+
             // Normalize alpha angle to 0-360 range
             if (isAlpha) {
                 return smoothed > 360 ? smoothed - 360 : (smoothed < 0 ? smoothed + 360 : smoothed);
             }
-            
+
             // For beta and gamma, keep in their natural ranges
             return smoothed;
         }
-        
+
         function applySmoothingToOrientation(rawOrientation) {
             // Apply smoothing to each orientation axis with appropriate handling
             smoothedOrientation.alpha = smoothValue(smoothedOrientation.alpha, rawOrientation.alpha, smoothingFactor, true); // Alpha needs angle wrapping
             smoothedOrientation.beta = smoothValue(smoothedOrientation.beta, rawOrientation.beta, smoothingFactor, false);
             smoothedOrientation.gamma = smoothValue(smoothedOrientation.gamma, rawOrientation.gamma, smoothingFactor, false);
-            
+
             return smoothedOrientation;
         }
-        
+
         function setSmoothingFactor(factor) {
             // Clamp smoothing factor between 0.0 and 1.0
             smoothingFactor = Math.max(0.0, Math.min(1.0, factor));
@@ -740,89 +792,89 @@
                 console.error('Camera element not found');
                 return false;
             }
-            
+
             // Check if device orientation is supported
             if (!window.DeviceOrientationEvent) {
                 console.warn('Device orientation not supported');
                 return false;
             }
-            
+
             // Check if permissions are required and granted
             if (isIOSDevice && motionPermissionStatus !== 'granted') {
                 console.warn('Motion sensor permissions not granted on iOS device');
                 return false;
             }
-            
+
             // Initialize smoothed orientation to current values
             smoothedOrientation = { alpha: 0, beta: 0, gamma: 0 };
             lastOrientationUpdate = 0;
-            
+
             // Add device orientation event listener
             window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
             orientationActive = true;
-            
+
             console.log(`Device orientation tracking initialized with smoothing factor: ${smoothingFactor}`);
             return true;
         }
-        
+
         function handleDeviceOrientation(event) {
             if (!orientationActive || !camera) return;
-            
+
             // Throttle orientation updates to prevent excessive processing
             const now = Date.now();
             if (now - lastOrientationUpdate < orientationUpdateThreshold) {
                 return;
             }
             lastOrientationUpdate = now;
-            
+
             // Store raw orientation values
             const rawOrientation = {
                 alpha: event.alpha || 0,  // Compass heading (0-360°)
                 beta: event.beta || 0,    // Front-back tilt (-180° to 180°)
                 gamma: event.gamma || 0   // Left-right tilt (-90° to 90°)
             };
-            
+
             // Apply smoothing to prevent jitter
             currentOrientation = applySmoothingToOrientation(rawOrientation);
-            
+
             // Convert smoothed orientation to A-Frame camera rotation
             updateCameraRotation();
         }
-        
+
         function updateCameraRotation() {
             if (!camera) return;
-            
+
             const { alpha, beta, gamma } = currentOrientation;
-            
+
             // Convert device orientation to A-Frame rotation
             // A-Frame uses degrees and follows right-handed coordinate system
             // Y-axis rotation (yaw) - compass heading
             const yaw = -alpha; // Negative to match expected rotation direction
-            
+
             // X-axis rotation (pitch) - front-back tilt
             const pitch = beta;
-            
+
             // Z-axis rotation (roll) - left-right tilt
             const roll = -gamma; // Negative to match expected rotation direction
-            
+
             // Apply smoothed rotation to camera using requestAnimationFrame for smooth updates
             requestAnimationFrame(() => {
                 camera.setAttribute('rotation', `${pitch} ${yaw} ${roll}`);
             });
-            
+
             // Update debug display with smoothing information
             const debugElement = document.getElementById('orientationDebug');
             if (debugElement && debugElement.style.display !== 'none') {
                 debugElement.textContent = `Smoothed: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}° | Camera: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)} | Smooth: ${smoothingFactor.toFixed(2)}`;
             }
-            
+
             // Debug logging (can be removed later)
             if (Math.random() < 0.01) { // Log only 1% of the time to avoid spam
                 console.log(`Smoothed Orientation: α=${alpha.toFixed(1)}° β=${beta.toFixed(1)}° γ=${gamma.toFixed(1)}°`);
                 console.log(`Camera rotation: ${pitch.toFixed(1)} ${yaw.toFixed(1)} ${roll.toFixed(1)}`);
             }
         }
-        
+
         function stopDeviceOrientation() {
             if (orientationActive) {
                 window.removeEventListener('deviceorientation', handleDeviceOrientation);
@@ -830,13 +882,13 @@
                 console.log('Device orientation tracking stopped');
             }
         }
-        
+
         function testOrientation() {
             if (!camera) {
                 document.getElementById('status').textContent = 'Camera not found! Start AR Hunt first.';
                 return;
             }
-            
+
             // Simulate device orientation changes to test camera rotation
             const testOrientations = [
                 { alpha: 0, beta: 0, gamma: 0, name: 'Level' },
@@ -846,7 +898,7 @@
                 { alpha: 0, beta: 30, gamma: 0, name: 'Look Up' },
                 { alpha: 0, beta: -30, gamma: 0, name: 'Look Down' }
             ];
-            
+
             let testIndex = 0;
             const testInterval = setInterval(() => {
                 if (testIndex >= testOrientations.length) {
@@ -854,26 +906,26 @@
                     document.getElementById('status').textContent = 'Orientation test complete!';
                     return;
                 }
-                
+
                 const test = testOrientations[testIndex];
                 currentOrientation = { alpha: test.alpha, beta: test.beta, gamma: test.gamma };
                 updateCameraRotation();
-                
+
                 document.getElementById('status').textContent = `Testing: ${test.name} (${test.alpha}°, ${test.beta}°, ${test.gamma}°)`;
                 console.log(`Test ${testIndex + 1}: ${test.name} - Camera rotation applied`);
-                
+
                 testIndex++;
             }, 2000);
         }
-        
+
         function testSmoothingTransition() {
             if (!camera) {
                 document.getElementById('status').textContent = 'Camera not found! Start AR Hunt first.';
                 return;
             }
-            
+
             document.getElementById('status').textContent = 'Testing smoothing transition - watch camera movement!';
-            
+
             // Test rapid orientation changes to demonstrate smoothing
             const rapidChanges = [
                 { alpha: 0, beta: 0, gamma: 0 },
@@ -884,7 +936,7 @@
                 { alpha: 0, beta: -30, gamma: 0 },
                 { alpha: 0, beta: 0, gamma: 0 }
             ];
-            
+
             let changeIndex = 0;
             const changeInterval = setInterval(() => {
                 if (changeIndex >= rapidChanges.length) {
@@ -892,26 +944,26 @@
                     document.getElementById('status').textContent = 'Smoothing test complete! Notice how smooth the camera movement was.';
                     return;
                 }
-                
+
                 const change = rapidChanges[changeIndex];
-                
+
                 // Simulate rapid orientation change
                 const simulatedEvent = {
                     alpha: change.alpha,
                     beta: change.beta,
                     gamma: change.gamma
                 };
-                
+
                 // Apply the change through the smoothing system
                 const rawOrientation = {
                     alpha: simulatedEvent.alpha,
                     beta: simulatedEvent.beta,
                     gamma: simulatedEvent.gamma
                 };
-                
+
                 currentOrientation = applySmoothingToOrientation(rawOrientation);
                 updateCameraRotation();
-                
+
                 console.log(`Smoothing test ${changeIndex + 1}: Applied orientation ${change.alpha}°, ${change.beta}°, ${change.gamma}°`);
                 changeIndex++;
             }, 500); // Rapid changes every 500ms
@@ -923,7 +975,7 @@
         });
 
         // Initialize permission checking when page loads
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('Page loaded, checking motion permission requirements...');
             checkMotionPermissionStatus();
         });
