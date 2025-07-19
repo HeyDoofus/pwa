@@ -141,6 +141,42 @@ class DuckSpawner {
     }
 
     /**
+     * Generate motion-aware spawn position based on device orientation
+     */
+    generateMotionAwarePosition(orientation = null) {
+        if (!orientation) {
+            return this.generateSpawnPosition();
+        }
+
+        // Use device orientation to influence spawn position
+        const { alpha, beta, gamma } = orientation;
+        
+        // Convert orientation to radians
+        const alphaRad = (alpha * Math.PI) / 180;
+        const betaRad = (beta * Math.PI) / 180;
+        
+        // Base distance with some variation
+        const baseDistance = 2.0 + Math.random() * 1.5;
+        
+        // Calculate position influenced by device orientation
+        // Alpha (compass heading) affects horizontal positioning
+        // Beta (tilt) affects vertical positioning
+        const horizontalOffset = Math.sin(alphaRad) * 1.5;
+        const verticalOffset = Math.sin(betaRad) * 0.5;
+        
+        // Add randomness for variety
+        const randomX = (Math.random() - 0.5) * 1.0;
+        const randomY = (Math.random() - 0.5) * 0.8;
+        const randomZ = (Math.random() - 0.5) * 1.0;
+        
+        return {
+            x: horizontalOffset + randomX,
+            y: verticalOffset + randomY,
+            z: -baseDistance + randomZ
+        };
+    }
+
+    /**
      * Get duck type based on rarity algorithm
      */
     getDuckByRarity() {

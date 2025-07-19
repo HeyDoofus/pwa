@@ -42,15 +42,149 @@
         </div>
         
         <button class="test-button" onclick="testFunction()">Click to Test JavaScript</button>
+        <button class="test-button" onclick="testMotionSensors()">Test Motion Sensors</button>
+        <button class="test-button" onclick="stopMotionTest()">Stop Motion Test</button>
         <div id="output">JavaScript not loaded yet...</div>
+        <div id="motionOutput" style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px; font-family: monospace; font-size: 12px;"></div>
     </div>
 
     <script>
         console.log('Debug script loaded successfully');
         
+        let motionTestActive = false;
+        let orientationData = { alpha: 0, beta: 0, gamma: 0 };
+        let motionData = { x: 0, y: 0, z: 0 };
+        
         function testFunction() {
             document.getElementById('output').innerHTML = '✅ JavaScript is working!<br>Ready to debug the main app.';
             console.log('Test function executed');
+        }
+        
+        async function testMotionSensors() {
+            const output = document.getElementById('motionOutput');
+            output.innerHTML = 'Testing motion sensors...<br>';
+            
+            // Check sensor support
+            if (!('DeviceOrientationEvent' in window)) {
+                output.innerHTML += '❌ DeviceOrientationEvent not supported<br>';
+                return;
+            }
+            
+            if (!('DeviceMotionEvent' in window)) {
+                output.innerHTML += '❌ DeviceMotionEvent not supported<br>';
+                return;
+            }
+            
+            output.innerHTML += '✅ Motion sensors supported<br>';
+            
+            // Request permissions for iOS 13+
+            try {
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    output.innerHTML += 'Requesting orientation permission...<br>';
+                    const orientationPermission = await DeviceOrientationEvent.requestPermission();
+                    output.innerHTML += `Orientation permission: ${orientationPermission}<br>`;
+                    
+                    if (orientationPermission !== 'granted') {
+                        output.innerHTML += '❌ Orientation permission denied<br>';
+                        return;
+                    }
+                }
+                
+                if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                    output.innerHTML += 'Requesting motion permission...<br>';
+                    const motionPermission = await DeviceMotionEvent.requestPermission();
+                    output.innerHTML += `Motion permission: ${motionPermission}<br>`;
+                    
+                    if (motionPermission !== 'granted') {
+                        output.innerHTML += '❌ Motion permission denied<br>';
+                        return;
+                    }
+                }
+                
+                output.innerHTML += '✅ Permissions granted<br>';
+                startMotionListeners();
+                
+            } catch (error) {
+                output.innerHTML += `❌ Permission error: ${error.message}<br>`;
+                console.error('Permission error:', error);
+            }
+        }
+        
+        function startMotionListeners() {
+            motionTestActive = true;
+            const output = document.getElementById('motionOutput');
+            output.innerHTML += '🎯 Motion sensors active - move your device!<br><br>';
+            
+            // Device orientation listener
+            window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+            
+            // Device motion listener  
+            window.addEventListener('devicemotion', handleMotion, { passive: true });
+            
+            // Update display every 500ms
+            const updateInterval = setInterval(() => {
+                if (!motionTestActive) {
+                    clearInterval(updateInterval);
+                    return;
+                }
+                
+                updateMotionDisplay();
+            }, 500);
+        }
+        
+        function handleOrientation(event) {
+            if (!motionTestActive) return;
+            
+            orientationData.alpha = event.alpha || 0;
+            orientationData.beta = event.beta || 0;
+            orientationData.gamma = event.gamma || 0;
+        }
+        
+        function handleMotion(event) {
+            if (!motionTestActive) return;
+            
+            const acc = event.accelerationIncludingGravity;
+            if (acc) {
+                motionData.x = acc.x || 0;
+                motionData.y = acc.y || 0;
+                motionData.z = acc.z || 0;
+            }
+        }
+        
+        function updateMotionDisplay() {
+            const output = document.getElementById('motionOutput');
+            const orientationHtml = `
+                <strong>Orientation:</strong><br>
+                Alpha (Z): ${orientationData.alpha.toFixed(1)}°<br>
+                Beta (X): ${orientationData.beta.toFixed(1)}°<br>
+                Gamma (Y): ${orientationData.gamma.toFixed(1)}°<br><br>
+            `;
+            
+            const motionHtml = `
+                <strong>Motion:</strong><br>
+                X: ${motionData.x.toFixed(2)} m/s²<br>
+                Y: ${motionData.y.toFixed(2)} m/s²<br>
+                Z: ${motionData.z.toFixed(2)} m/s²<br><br>
+            `;
+            
+            const magnitude = Math.sqrt(motionData.x*motionData.x + motionData.y*motionData.y + motionData.z*motionData.z);
+            const magnitudeHtml = `<strong>Motion Magnitude:</strong> ${magnitude.toFixed(2)}<br><br>`;
+            
+            // Keep the initial status messages and add current data
+            const statusLines = output.innerHTML.split('<br>');
+            const statusEnd = statusLines.findIndex(line => line.includes('move your device!')) + 2;
+            const statusHtml = statusLines.slice(0, statusEnd).join('<br>');
+            
+            output.innerHTML = statusHtml + orientationHtml + motionHtml + magnitudeHtml;
+        }
+        
+        function stopMotionTest() {
+            motionTestActive = false;
+            window.removeEventListener('deviceorientation', handleOrientation);
+            window.removeEventListener('devicemotion', handleMotion);
+            
+            const output = document.getElementById('motionOutput');
+            output.innerHTML += '⏹️ Motion test stopped<br>';
         }
         
         // Test if page loads

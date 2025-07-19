@@ -19,6 +19,7 @@
         onerror="console.error('AR.js failed to load')"></script>
 
     <!-- Manager Classes -->
+    <script src="js/managers/MotionSensorManager.js"></script>
     <script src="js/managers/ARManager.js"></script>
     <script src="js/managers/CollectionManager.js"></script>
     <script src="js/managers/DuckSpawner.js"></script>
@@ -326,11 +327,22 @@
     </div>
 
     <button class="ar-button" id="startAR">🔍 Hunt for Ducks with AR</button>
+    
+    <div id="motionPermissionPrompt" style="display: none; background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin: 10px 0; text-align: center;">
+        <p>📱 Motion sensors enhance the AR experience!</p>
+        <button class="ar-button" id="enableMotionSensors" style="margin: 5px 0;">Enable Motion Sensors</button>
+    </div>
 
-        <div class="duck-info"></div>
+        <div class="duck-info">
             <h3>Duck Types</h3>
             <p>🐥 Yellow Duck (10 pts) • 🌟 Golden Duck (50 pts) • 👑 Royal Duck (100 pts)</p>
             <p>Find rubber ducks by scanning your environment with AR!</p>
+        </div>
+        
+        <!-- Debug panel (only shown when ?debug=true) -->
+        <div id="debugPanel" style="display: none; background: rgba(0,0,0,0.7); color: white; padding: 15px; border-radius: 10px; margin-top: 20px; font-family: monospace; font-size: 12px;">
+            <h4>🔧 Debug Info</h4>
+            <div id="debugOutput">Debug mode active...</div>
         </div>
     </div>
 

@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [-] 1. Refactor existing code into modular architecture
+- [x] 1. Refactor existing code into modular architecture
   - Extract AR functionality into dedicated ARManager class
   - Create CollectionManager class for duck collection logic
   - Implement DuckSpawner class for duck generation and positioning
@@ -8,7 +8,7 @@
   - _Requirements: 1.1, 2.1, 3.1, 4.1_
 
 - [ ] 2. Enhance AR duck detection and interaction
-  - [ ] 2.1 Implement improved duck positioning using motion sensors
+  - [x] 2.1 Implement improved duck positioning using motion sensors
     - Integrate DeviceOrientationEvent for accurate duck placement in 3D space
     - Add gyroscope-based tracking for smooth duck movement relative to device orientation
     - Create motion-based duck spawning that responds to user movement

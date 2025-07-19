@@ -59,8 +59,8 @@ class DuckCollectorApp {
         // Initialize duck spawner
         this.duckSpawner.init();
         
-        // Initialize AR manager
-        const arInitialized = this.arManager.init();
+        // Initialize AR manager (now async due to motion sensors)
+        const arInitialized = await this.arManager.init();
         if (!arInitialized) {
             console.warn('AR functionality not available');
         }
@@ -546,6 +546,14 @@ function closeRewardPopup() {
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing Duck Collector App...');
+    
+    // Show debug panel if debug mode is enabled
+    if (window.location.search.includes('debug=true')) {
+        const debugPanel = document.getElementById('debugPanel');
+        if (debugPanel) {
+            debugPanel.style.display = 'block';
+        }
+    }
     
     // Create global app instance
     window.duckCollectorApp = new DuckCollectorApp();
