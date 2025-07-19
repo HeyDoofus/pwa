@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Collector - Debug Version</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-button {
+            width: 100%;
+            padding: 15px;
+            background: #ff6b6b;
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🦆 Duck Collector - Debug</h1>
+            <p>Testing basic functionality</p>
+        </div>
+        
+        <button class="test-button" onclick="testFunction()">Click to Test JavaScript</button>
+        <div id="output">JavaScript not loaded yet...</div>
+    </div>
+
+    <script>
+        console.log('Debug script loaded successfully');
+        
+        function testFunction() {
+            document.getElementById('output').innerHTML = '✅ JavaScript is working!<br>Ready to debug the main app.';
+            console.log('Test function executed');
+        }
+        
+        // Test if page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('output').textContent = '✅ Page loaded successfully!';
+            console.log('DOM loaded');
+        });
+    </script>
+</body>
+</html>
