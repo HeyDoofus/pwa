@@ -72,7 +72,7 @@
 
 
         .button {
-            background: #4CAF50;
+            background: linear-gradient(135deg, #ff9800, #f57c00);
             color: white;
             border: none;
             padding: 10px 20px;
@@ -81,17 +81,46 @@
             margin: 5px;
             font-size: 16px;
             transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
         }
 
         .button:hover {
+            background: linear-gradient(135deg, #ffb74d, #ff9800);
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
         }
 
         .button:disabled {
-            opacity: 0.6;
+            background: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.7);
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
+        }
+
+        /* Special styling for primary action buttons */
+        .button.primary {
+            background: linear-gradient(135deg, #ffeb3b, #ffc107);
+            color: #000;
+            font-weight: 600;
+        }
+
+        .button.primary:hover {
+            background: linear-gradient(135deg, #fff176, #ffeb3b);
+            box-shadow: 0 4px 12px rgba(255, 235, 59, 0.4);
+        }
+
+        /* Special styling for secondary action buttons */
+        .button.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .button.secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
         }
 
         .permission-panel {
@@ -178,20 +207,19 @@
                 <p style="margin: 0 0 15px 0; font-size: 12px; color: #ccc;">
                     Your privacy is protected - motion data stays on your device and is only used for AR positioning.
                 </p>
-                <button class="button" onclick="requestMotionPermissions()"
-                    style="background: #ffeb3b; color: #000;">Allow Motion Access</button>
-                <button class="button" onclick="hideMotionExplanation()" style="background: rgba(255,255,255,0.2);">Skip
-                    (Manual Mode)</button>
+                <button class="button primary" onclick="requestMotionPermissions()">Allow Motion Access</button>
+                <button class="button secondary" onclick="hideMotionExplanation()">Skip (Manual Mode)</button>
             </div>
 
-            <button class="button" onclick="startARHunt()" id="startBtn">Start Experience</button>
-            <button class="button" onclick="showMotionPermissionExplanation()" id="permissionBtn"
+            <button class="button primary" onclick="startARHunt()" id="startBtn">Start Experience</button>
+            <button class="button primary" onclick="showMotionPermissionExplanation()" id="permissionBtn"
                 style="display:none;">Enable Motion Sensors</button>
             <button class="button" onclick="requestCameraAccess()" id="cameraBtn" style="display:none;">Enable
                 Camera</button>
             <button class="button" onclick="generateAnotherDuck()" id="generateBtn" style="display:none;">Generate
                 Another</button>
-            <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop Experience</button>
+            <button class="button secondary" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop
+                Experience</button>
         </div>
     </div>
 
@@ -598,7 +626,6 @@
             document.getElementById('permissionBtn').textContent = 'Try Motion Sensors Again';
             document.getElementById('permissionBtn').disabled = false;
             document.getElementById('permissionBtn').style.display = 'inline-block';
-            document.getElementById('permissionBtn').style.background = 'rgba(255, 235, 59, 0.3)';
 
             // Show start button for manual mode
             document.getElementById('startBtn').style.display = 'inline-block';
@@ -630,8 +657,6 @@
                     '🎯 <strong>Enhanced AR Available!</strong><br>Enable motion sensors for the best duck hunting experience.';
                 document.getElementById('startBtn').style.display = 'none';
                 document.getElementById('permissionBtn').style.display = 'inline-block';
-                document.getElementById('permissionBtn').style.background = '#ffeb3b';
-                document.getElementById('permissionBtn').style.color = '#000';
                 return false; // Don't allow starting without permissions
             } else {
                 // Non-iOS or older iOS, permissions not required
