@@ -82,6 +82,16 @@ class ARManager {
         startARButton.addEventListener('click', () => this.startAR());
         this.closeButton.addEventListener('click', () => this.stopAR());
         
+        // Test duck spawn button
+        const spawnTestButton = document.getElementById('spawnTestDuck');
+        if (spawnTestButton) {
+            spawnTestButton.addEventListener('click', () => {
+                if (this.isARActive) {
+                    this.spawnTestDuck();
+                }
+            });
+        }
+        
         // Touch/click detection for AR duck collection
         this.arScene.addEventListener('click', (event) => {
             if (this.isARActive) {
@@ -206,34 +216,48 @@ class ARManager {
             this.updateARInstructions('Move your device around to discover ducks!');
             this.startDuckPositionUpdates();
             
-            // Spawn initial duck after a delay
+            // Spawn initial duck immediately for testing
             setTimeout(() => {
                 if (this.isARActive) {
+                    console.log('Spawning initial test duck...');
+                    this.spawnTestDuck();
+                    
+                    // Also try motion-based duck
                     const orientation = this.motionSensorManager.getOrientation();
                     this.spawnMotionBasedDuck(orientation);
                 }
-            }, 3000);
+            }, 2000);
             
-            // Periodic spawning based on movement
+            // More frequent spawning for testing
             this.duckSpawnTimer = setInterval(() => {
-                if (this.isARActive && this.activeDucks.size < 2) {
+                if (this.isARActive && this.activeDucks.size < 3) {
                     const isMoving = this.motionSensorManager.isMoving();
-                    const spawnChance = isMoving ? 0.3 : 0.1; // Higher chance when moving
+                    const spawnChance = isMoving ? 0.7 : 0.4; // Much higher chance
                     
                     if (Math.random() < spawnChance) {
                         const orientation = this.motionSensorManager.getOrientation();
                         this.spawnMotionBasedDuck(orientation);
+                        this.updateARInstructions(`Duck spawned! Total: ${this.activeDucks.size + 1}`);
                     }
                 }
-            }, 8000);
+            }, 5000); // More frequent
         } else {
-            // Fallback to basic duck hunt
-            this.updateARInstructions('Looking for ducks...');
-            this.duckSpawnTimer = setInterval(() => {
-                if (this.isARActive && Math.random() < 0.2) {
-                    this.showDuckSpotted();
+            // Enhanced fallback with visible duck
+            this.updateARInstructions('Looking for ducks... (No motion sensors)');
+            
+            // Spawn a test duck immediately
+            setTimeout(() => {
+                if (this.isARActive) {
+                    this.spawnTestDuck();
                 }
-            }, 5000);
+            }, 1000);
+            
+            this.duckSpawnTimer = setInterval(() => {
+                if (this.isARActive && Math.random() < 0.5) {
+                    this.showDuckSpotted();
+                    this.spawnTestDuck();
+                }
+            }, 4000);
         }
     }
 
@@ -279,8 +303,10 @@ class ARManager {
     updateARInstructions(text) {
         const instructionsElement = document.getElementById('arInstructions');
         if (instructionsElement) {
-            instructionsElement.textContent = text;
+            const timestamp = new Date().toLocaleTimeString();
+            instructionsElement.innerHTML = `${text}<br><small>[${timestamp}] Active ducks: ${this.activeDucks.size}</small>`;
         }
+        console.log(`AR Instructions: ${text}`);
     }
 
     /**
@@ -384,48 +410,78 @@ class ARManager {
      */
     createDuckEntity(position, duckId) {
         const scene = this.arScene;
-        if (!scene) return null;
+        if (!scene) {
+            console.error('AR scene not found!');
+            return null;
+        }
+
+        console.log(`Creating duck entity ${duckId} at position:`, position);
 
         // Create main duck container
         const duckEntity = document.createElement('a-entity');
         duckEntity.setAttribute('id', duckId);
         duckEntity.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
-        duckEntity.setAttribute('scale', '0.3 0.3 0.3');
+        duckEntity.setAttribute('scale', '0.5 0.5 0.5'); // Larger scale for visibility
         duckEntity.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 4000');
+        duckEntity.setAttribute('visible', 'true');
         duckEntity.classList.add('collectible-duck');
 
-        // Duck body (main yellow box)
+        // Duck body (main yellow box) - make it brighter and larger
         const body = document.createElement('a-box');
         body.setAttribute('color', '#ffeb3b');
-        body.setAttribute('width', '1');
-        body.setAttribute('height', '0.6');
-        body.setAttribute('depth', '1.5');
+        body.setAttribute('width', '1.2');
+        body.setAttribute('height', '0.8');
+        body.setAttribute('depth', '1.8');
+        body.setAttribute('material', 'color: #ffeb3b; metalness: 0.1; roughness: 0.7');
         duckEntity.appendChild(body);
 
-        // Duck head (orange sphere)
+        // Duck head (orange sphere) - make it more prominent
         const head = document.createElement('a-sphere');
         head.setAttribute('color', '#ff9800');
-        head.setAttribute('radius', '0.4');
-        head.setAttribute('position', '0.6 0.2 0.3');
+        head.setAttribute('radius', '0.5');
+        head.setAttribute('position', '0.7 0.3 0.4');
+        head.setAttribute('material', 'color: #ff9800; metalness: 0.1; roughness: 0.7');
         duckEntity.appendChild(head);
 
         // Duck beak (red cone)
         const beak = document.createElement('a-cone');
         beak.setAttribute('color', '#ff5722');
-        beak.setAttribute('radius-bottom', '0.1');
+        beak.setAttribute('radius-bottom', '0.15');
         beak.setAttribute('radius-top', '0.05');
-        beak.setAttribute('height', '0.2');
-        beak.setAttribute('position', '0.8 0.1 0.4');
+        beak.setAttribute('height', '0.3');
+        beak.setAttribute('position', '1.0 0.2 0.5');
         beak.setAttribute('rotation', '90 0 0');
+        beak.setAttribute('material', 'color: #ff5722; metalness: 0.1; roughness: 0.7');
         duckEntity.appendChild(beak);
 
+        // Add a bright outline for visibility
+        const outline = document.createElement('a-box');
+        outline.setAttribute('color', '#ffffff');
+        outline.setAttribute('width', '1.3');
+        outline.setAttribute('height', '0.9');
+        outline.setAttribute('depth', '1.9');
+        outline.setAttribute('position', '0 0 0');
+        outline.setAttribute('material', 'color: #ffffff; opacity: 0.3; transparent: true');
+        duckEntity.appendChild(outline);
+
         // Add click handler for collection
-        duckEntity.addEventListener('click', () => {
+        duckEntity.addEventListener('click', (event) => {
+            console.log('Duck clicked:', duckId);
             this.collectDuck(duckId);
+            event.stopPropagation();
+        });
+
+        // Add touch handler for mobile
+        duckEntity.addEventListener('touchstart', (event) => {
+            console.log('Duck touched:', duckId);
+            this.collectDuck(duckId);
+            event.preventDefault();
+            event.stopPropagation();
         });
 
         // Add to scene
         scene.appendChild(duckEntity);
+        console.log(`Duck entity ${duckId} added to scene`);
         
         return duckEntity;
     }
@@ -689,6 +745,38 @@ class ARManager {
                 notification.parentNode.removeChild(notification);
             }
         }, 3000);
+    }
+
+    /**
+     * Spawn a test duck in a guaranteed visible position
+     */
+    spawnTestDuck() {
+        console.log('Spawning test duck in fixed position...');
+        
+        // Fixed position that should be visible
+        const position = { x: 0, y: 0, z: -1.5 }; // 1.5 meters in front of camera
+        
+        const duckId = 'test-duck-' + Date.now();
+        const duckEntity = this.createDuckEntity(position, duckId);
+        
+        if (duckEntity) {
+            this.activeDucks.set(duckId, {
+                entity: duckEntity,
+                spawnTime: Date.now(),
+                position: position,
+                type: this.getDuckByRarity()
+            });
+
+            console.log(`Test duck spawned at position:`, position);
+            this.updateARInstructions(`Test duck spawned! Look straight ahead. Total ducks: ${this.activeDucks.size}`);
+            
+            // Auto-remove after 20 seconds
+            setTimeout(() => {
+                this.removeDuckEntity(duckId);
+            }, 20000);
+        } else {
+            console.error('Failed to create test duck entity');
+        }
     }
 
     /**
