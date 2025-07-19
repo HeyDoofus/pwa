@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Duck Test</title>
-    
+
     <!-- AR.js and A-Frame -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
-    
+
     <style>
         body {
             margin: 0;
             font-family: Arial, sans-serif;
         }
-        
+
         .overlay {
             position: fixed;
             top: 20px;
@@ -27,7 +28,7 @@
             color: white;
             text-align: center;
         }
-        
+
         .button {
             background: #4CAF50;
             color: white;
@@ -38,7 +39,7 @@
             margin: 5px;
             font-size: 16px;
         }
-        
+
         .close-button {
             position: fixed;
             top: 20px;
@@ -55,6 +56,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="overlay">
         <h3>🦆 AR Duck Test</h3>
@@ -63,7 +65,7 @@
         <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
         <button class="button" onclick="toggleDuck()" id="toggleBtn" style="display:none;">Toggle Duck</button>
     </div>
-    
+
     <button class="close-button" onclick="stopAR()" id="closeBtn" style="display:none;">×</button>
 
     <!-- AR Scene -->
@@ -72,45 +74,42 @@
         vr-mode-ui="enabled: false" renderer="logarithmicDepthBuffer: true;">
 
         <!-- AR Camera with proper look controls for duck hunting -->
-        <a-camera 
+        <a-camera
             arjs-camera="sourceType: webcam; sourceWidth: 480; sourceHeight: 360; displayWidth: 480; displayHeight: 360;"
-            look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true" 
-            wasd-controls="enabled: false" 
-            position="0 1.6 0"
-            rotation="0 0 0">
+            look-controls="enabled: true; pointerLockEnabled: false; touchEnabled: true" wasd-controls="enabled: false"
+            position="0 1.6 0" rotation="0 0 0">
         </a-camera>
 
         <!-- Test Duck - Realistic Rubber Duck -->
         <a-entity id="testDuck" position="0 0 -1.5" scale="0.08 0.08 0.08" visible="false"
             animation="property: rotation; to: 0 360 0; loop: true; dur: 6000"
             animation__float="property: position; to: 0 0.05 -1.5; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine">
-            
+
             <!-- Duck body - rounded like real rubber duck -->
             <a-sphere color="#ffeb3b" radius="1" position="0 0 0" scale="1 0.8 1.2"
-                      material="color: #ffeb3b; metalness: 0.2; roughness: 0.8"></a-sphere>
-            
+                material="color: #ffeb3b; metalness: 0.2; roughness: 0.8"></a-sphere>
+
             <!-- Duck head -->
             <a-sphere color="#ffeb3b" radius="0.6" position="0 0.7 0.3"
-                      material="color: #ffeb3b; metalness: 0.2; roughness: 0.8"></a-sphere>
-            
+                material="color: #ffeb3b; metalness: 0.2; roughness: 0.8"></a-sphere>
+
             <!-- Duck beak -->
-            <a-cone color="#ff9800" radius-bottom="0.15" radius-top="0.05" height="0.3" 
-                    position="0 0.7 0.8" rotation="90 0 0"
-                    material="color: #ff9800; metalness: 0.3; roughness: 0.7"></a-cone>
-            
+            <a-cone color="#ff9800" radius-bottom="0.15" radius-top="0.05" height="0.3" position="0 0.7 0.8"
+                rotation="90 0 0" material="color: #ff9800; metalness: 0.3; roughness: 0.7"></a-cone>
+
             <!-- Duck eyes -->
             <a-sphere color="#000000" radius="0.08" position="-0.15 0.8 0.55"
-                      material="color: #000000; metalness: 0.8; roughness: 0.2"></a-sphere>
+                material="color: #000000; metalness: 0.8; roughness: 0.2"></a-sphere>
             <a-sphere color="#000000" radius="0.08" position="0.15 0.8 0.55"
-                      material="color: #000000; metalness: 0.8; roughness: 0.2"></a-sphere>
-            
+                material="color: #000000; metalness: 0.8; roughness: 0.2"></a-sphere>
+
             <!-- Duck tail -->
             <a-sphere color="#ffeb3b" radius="0.2" position="0 0.2 -1" scale="0.8 1.2 0.6"
-                      material="color: #ffeb3b; metalness: 0.2; roughness: 0.8"></a-sphere>
-            
+                material="color: #ffeb3b; metalness: 0.2; roughness: 0.8"></a-sphere>
+
             <!-- Subtle glow for visibility -->
             <a-sphere color="#ffff00" radius="1.3" position="0 0 0"
-                      material="color: #ffff00; opacity: 0.1; transparent: true"></a-sphere>
+                material="color: #ffff00; opacity: 0.1; transparent: true"></a-sphere>
         </a-entity>
 
         <!-- Lighting -->
@@ -121,11 +120,11 @@
     <script>
         let arActive = false;
         let duckVisible = false;
-        
+
         async function startAR() {
             try {
                 document.getElementById('status').textContent = 'Requesting camera access...';
-                
+
                 // Request camera permission
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
@@ -144,26 +143,26 @@
                 document.getElementById('toggleBtn').style.display = 'inline-block';
                 document.getElementById('debugBtn').style.display = 'inline-block';
                 document.getElementById('closeBtn').style.display = 'block';
-                
+
                 arActive = true;
                 document.getElementById('status').textContent = 'AR Active! Try spawning a duck.';
-                
+
                 // Auto-spawn a duck after 2 seconds
                 setTimeout(() => {
                     if (arActive) {
                         spawnDuck();
                     }
                 }, 2000);
-                
+
             } catch (error) {
                 console.error('Camera error:', error);
                 document.getElementById('status').textContent = 'Camera access failed: ' + error.message;
             }
         }
-        
+
         function spawnDuck() {
             if (!arActive) return;
-            
+
             const duck = document.getElementById('testDuck');
             if (duck) {
                 // Generate random position in 3D world space for duck hunting
@@ -171,18 +170,18 @@
                 const distance = 2 + Math.random() * 3; // 2 to 5 meters away
                 const angle = Math.random() * Math.PI * 2; // Full 360 degrees
                 const height = 0.5 + Math.random() * 2; // 0.5 to 2.5 meters high (above ground)
-                
+
                 // Calculate world position
                 const x = Math.cos(angle) * distance;
                 const y = height;
                 const z = -Math.sin(angle) * distance; // Negative Z for proper AR positioning
-                
+
                 const position = `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`;
-                
+
                 duck.setAttribute('position', position);
                 duck.setAttribute('visible', 'true');
                 duckVisible = true;
-                
+
                 // Get direction for user guidance (corrected for AR coordinate system)
                 const degrees = (angle * 180 / Math.PI + 360) % 360;
                 let direction = "around you";
@@ -190,15 +189,15 @@
                 else if (degrees >= 45 && degrees < 135) direction = "to your right";
                 else if (degrees >= 135 && degrees < 225) direction = "behind you";
                 else if (degrees >= 225 && degrees < 315) direction = "to your left";
-                
+
                 document.getElementById('status').textContent = `Duck spawned ${direction}! Turn your phone to hunt for it.`;
                 console.log(`Duck spawned at: ${position}, Direction: ${direction}, Angle: ${degrees.toFixed(1)}°`);
-                
+
                 // Remove old click handlers and add new one
                 const newDuck = duck.cloneNode(true);
                 duck.parentNode.replaceChild(newDuck, duck);
-                
-                newDuck.addEventListener('click', function(e) {
+
+                newDuck.addEventListener('click', function (e) {
                     console.log('Duck clicked!');
                     document.getElementById('status').textContent = 'Duck found and collected! 🦆';
                     newDuck.setAttribute('visible', 'false');
@@ -207,10 +206,10 @@
                 });
             }
         }
-        
+
         function toggleDuck() {
             if (!arActive) return;
-            
+
             const duck = document.getElementById('testDuck');
             if (duck) {
                 duckVisible = !duckVisible;
@@ -218,11 +217,11 @@
                 document.getElementById('status').textContent = duckVisible ? 'Duck is now visible' : 'Duck is now hidden';
             }
         }
-        
+
         function stopAR() {
             arActive = false;
             duckVisible = false;
-            
+
             document.getElementById('arScene').style.display = 'none';
             document.getElementById('spawnBtn').style.display = 'none';
             document.getElementById('toggleBtn').style.display = 'none';
@@ -230,15 +229,15 @@
             document.getElementById('closeBtn').style.display = 'none';
             document.getElementById('status').textContent = 'AR stopped. Click "Start AR" to begin again.';
         }
-        
+
         // Handle scene clicks for duck collection
-        document.getElementById('arScene').addEventListener('click', function(event) {
+        document.getElementById('arScene').addEventListener('click', function (event) {
             if (arActive && duckVisible) {
                 document.getElementById('status').textContent = 'Screen tapped! If you see a duck, tap directly on it.';
                 console.log('Scene clicked at:', event.clientX, event.clientY);
             }
         });
-        
+
         // Add debugging function
         function debugDuckPosition() {
             const duck = document.getElementById('testDuck');
@@ -249,7 +248,7 @@
                 document.getElementById('status').textContent = `Debug: Duck at ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}`;
             }
         }
-        
+
         // Add debug button functionality
         function addDebugButton() {
             const debugBtn = document.createElement('button');
@@ -260,9 +259,10 @@
             debugBtn.id = 'debugBtn';
             document.querySelector('.overlay').appendChild(debugBtn);
         }
-        
+
         // Initialize debug button
         addDebugButton();
     </script>
 </body>
+
 </html>
