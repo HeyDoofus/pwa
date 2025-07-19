@@ -1,13 +1,13 @@
 # Implementation Plan
 
-- [-] 1. Add basic device orientation tracking to working-duck-hunt.html
+- [x] 1. Add basic device orientation tracking to working-duck-hunt.html
   - Add deviceorientation event listener to capture device rotation
   - Create function to convert orientation data (alpha, beta, gamma) to A-Frame camera rotation
   - Apply orientation changes directly to the A-Frame camera element
   - Test basic camera movement responds to device rotation
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2. Implement iOS 13+ motion sensor permission handling
+- [x] 2. Implement iOS 13+ motion sensor permission handling
   - Add function to detect iOS devices and check for permission requirements
   - Create requestMotionPermissions() function using DeviceOrientationEvent.requestPermission()
   - Add permission request button to existing UI overlay

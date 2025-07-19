@@ -58,6 +58,7 @@
         <p id="status">Click "Start AR Hunt" to begin!</p>
         <p id="orientationDebug" style="font-size: 12px; margin-top: 10px; display: none;"></p>
         <button class="button" onclick="startARHunt()" id="startBtn">Start AR Hunt</button>
+        <button class="button" onclick="requestMotionPermissions()" id="permissionBtn" style="display:none;">Enable Motion Sensors</button>
         <button class="button" onclick="spawnDuck()" id="spawnBtn" style="display:none;">Spawn Duck</button>
         <button class="button" onclick="clearDucks()" id="clearBtn" style="display:none;">Clear All</button>
         <button class="button" onclick="stopARHunt()" id="stopBtn" style="display:none;">Stop AR</button>
@@ -102,6 +103,138 @@
         let orientationActive = false;
         let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
         let camera = null;
+        
+        // iOS permission handling variables
+        let motionPermissionStatus = 'unknown'; // 'unknown', 'granted', 'denied', 'not-required'
+        let isIOSDevice = false;
+
+        // iOS Detection and Permission Functions
+        function detectIOSDevice() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            
+            // Check for iOS devices (iPhone, iPad, iPod)
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+            
+            // Check for iOS 13+ by looking for DeviceOrientationEvent.requestPermission
+            const requiresPermission = typeof DeviceOrientationEvent !== 'undefined' && 
+                                     typeof DeviceOrientationEvent.requestPermission === 'function';
+            
+            isIOSDevice = isIOS && requiresPermission;
+            
+            console.log(`Device detection: iOS=${isIOS}, RequiresPermission=${requiresPermission}, isIOSDevice=${isIOSDevice}`);
+            
+            return isIOSDevice;
+        }
+
+        async function requestMotionPermissions() {
+            console.log('Requesting motion sensor permissions...');
+            
+            try {
+                // Update UI to show requesting state
+                document.getElementById('status').textContent = 'Requesting motion sensor permissions...';
+                document.getElementById('permissionBtn').textContent = 'Requesting...';
+                document.getElementById('permissionBtn').disabled = true;
+                
+                // Request DeviceOrientationEvent permission
+                let orientationPermission = 'granted';
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    orientationPermission = await DeviceOrientationEvent.requestPermission();
+                    console.log('DeviceOrientationEvent permission:', orientationPermission);
+                }
+                
+                // Request DeviceMotionEvent permission if available
+                let motionPermission = 'granted';
+                if (typeof DeviceMotionEvent !== 'undefined' && 
+                    typeof DeviceMotionEvent.requestPermission === 'function') {
+                    motionPermission = await DeviceMotionEvent.requestPermission();
+                    console.log('DeviceMotionEvent permission:', motionPermission);
+                }
+                
+                // Check if both permissions are granted
+                if (orientationPermission === 'granted' && motionPermission === 'granted') {
+                    motionPermissionStatus = 'granted';
+                    handlePermissionGranted();
+                } else {
+                    motionPermissionStatus = 'denied';
+                    handlePermissionDenied();
+                }
+                
+            } catch (error) {
+                console.error('Error requesting motion permissions:', error);
+                motionPermissionStatus = 'denied';
+                handlePermissionError(error);
+            }
+        }
+
+        function handlePermissionGranted() {
+            console.log('Motion sensor permissions granted');
+            
+            // Update UI
+            document.getElementById('status').textContent = '✅ Motion sensors enabled! You can now start AR Hunt.';
+            document.getElementById('permissionBtn').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'inline-block';
+            
+            // Show success message briefly
+            setTimeout(() => {
+                if (!arActive) {
+                    document.getElementById('status').textContent = 'Motion sensors ready! Click "Start AR Hunt" to begin.';
+                }
+            }, 3000);
+        }
+
+        function handlePermissionDenied() {
+            console.log('Motion sensor permissions denied');
+            
+            // Update UI with clear explanation and retry option
+            document.getElementById('status').innerHTML = 
+                '❌ Motion sensor access denied.<br>' +
+                'For the best AR experience, please:<br>' +
+                '1. Go to Settings > Safari > Motion & Orientation Access<br>' +
+                '2. Enable motion sensors for this website<br>' +
+                '3. Refresh the page and try again';
+            
+            // Re-enable and update permission button
+            document.getElementById('permissionBtn').textContent = 'Retry Motion Permissions';
+            document.getElementById('permissionBtn').disabled = false;
+            document.getElementById('permissionBtn').style.display = 'inline-block';
+            
+            // Also show start button for fallback mode
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('startBtn').textContent = 'Start Without Motion';
+        }
+
+        function handlePermissionError(error) {
+            console.error('Permission request error:', error);
+            
+            // Update UI with error message
+            document.getElementById('status').textContent = 
+                '⚠️ Error requesting motion permissions. You can still play with manual controls.';
+            
+            // Re-enable permission button for retry
+            document.getElementById('permissionBtn').textContent = 'Retry Motion Permissions';
+            document.getElementById('permissionBtn').disabled = false;
+            document.getElementById('permissionBtn').style.display = 'inline-block';
+            
+            // Show start button for fallback
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('startBtn').textContent = 'Start Without Motion';
+        }
+
+        function checkMotionPermissionStatus() {
+            // This function checks if we need to show permission UI on page load
+            if (detectIOSDevice()) {
+                // iOS 13+ device detected, show permission button
+                document.getElementById('status').textContent = 
+                    '📱 iOS device detected. Motion sensor permissions required for AR tracking.';
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('permissionBtn').style.display = 'inline-block';
+                return false; // Don't allow starting without permissions
+            } else {
+                // Non-iOS or older iOS, permissions not required
+                motionPermissionStatus = 'not-required';
+                return true; // Allow starting immediately
+            }
+        }
 
         function spawnDuck() {
             duckCounter++;
@@ -273,7 +406,14 @@
                 document.getElementById('status').textContent = '🦆 Duck Hunt Active with Motion Tracking! Move your device to look around!';
                 document.getElementById('orientationDebug').style.display = 'block';
             } else {
-                document.getElementById('status').textContent = '🦆 Duck Hunt Active! Use touch controls to look around and spawn ducks!';
+                // Check if it's because of permission issues
+                if (isIOSDevice && motionPermissionStatus === 'denied') {
+                    document.getElementById('status').textContent = '🦆 Duck Hunt Active! Motion sensors disabled - using manual controls.';
+                } else if (isIOSDevice && motionPermissionStatus === 'unknown') {
+                    document.getElementById('status').textContent = '🦆 Duck Hunt Active! Motion permissions not requested - using manual controls.';
+                } else {
+                    document.getElementById('status').textContent = '🦆 Duck Hunt Active! Use touch controls to look around and spawn ducks!';
+                }
             }
 
             // Auto-spawn first duck after 2 seconds
@@ -299,8 +439,24 @@
             // Hide scene
             document.getElementById('arScene').style.display = 'none';
 
-            // Show start controls
-            document.getElementById('startBtn').style.display = 'inline-block';
+            // Show appropriate start controls based on permission status
+            if (isIOSDevice && motionPermissionStatus !== 'granted') {
+                // Show permission button if needed
+                if (motionPermissionStatus === 'unknown') {
+                    document.getElementById('permissionBtn').style.display = 'inline-block';
+                    document.getElementById('startBtn').style.display = 'none';
+                } else {
+                    // Permission denied, show both options
+                    document.getElementById('permissionBtn').style.display = 'inline-block';
+                    document.getElementById('startBtn').style.display = 'inline-block';
+                    document.getElementById('startBtn').textContent = 'Start Without Motion';
+                }
+            } else {
+                document.getElementById('startBtn').style.display = 'inline-block';
+                document.getElementById('startBtn').textContent = 'Start AR Hunt';
+                document.getElementById('permissionBtn').style.display = 'none';
+            }
+            
             document.getElementById('spawnBtn').style.display = 'none';
             document.getElementById('clearBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'none';
@@ -322,6 +478,12 @@
             // Check if device orientation is supported
             if (!window.DeviceOrientationEvent) {
                 console.warn('Device orientation not supported');
+                return false;
+            }
+            
+            // Check if permissions are required and granted
+            if (isIOSDevice && motionPermissionStatus !== 'granted') {
+                console.warn('Motion sensor permissions not granted on iOS device');
                 return false;
             }
             
@@ -423,6 +585,12 @@
         // Handle scene clicks
         document.querySelector('a-scene').addEventListener('click', function (event) {
             console.log('Scene clicked - look for ducks to tap!');
+        });
+
+        // Initialize permission checking when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, checking motion permission requirements...');
+            checkMotionPermissionStatus();
         });
     </script>
 </body>
