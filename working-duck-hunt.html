@@ -594,32 +594,68 @@
             const duck = document.createElement('a-entity');
             duck.setAttribute('id', duckId);
 
-            // Random position around user in WORLD SPACE (not relative to camera)
-            const distance = 2 + Math.random() * 3; // 2-5 meters
-            const angle = Math.random() * Math.PI * 2; // 360 degrees
-            const height = 1.5 + Math.random() * 2; // 1.5-3.5 meters high
+            // Much more random positioning with varied distances and heights
+            const duckType = Math.random();
+            let distance, height, scale, glowRadius;
+            
+            if (duckType < 0.3) {
+                // Close ducks (30% chance) - Easy targets
+                distance = 1.5 + Math.random() * 2.5; // 1.5-4 meters
+                height = 0.5 + Math.random() * 2; // 0.5-2.5 meters (can be very low)
+                scale = 0.4 + Math.random() * 0.3; // 0.4-0.7 scale (larger)
+                glowRadius = 2 + Math.random() * 1; // Bigger glow
+            } else if (duckType < 0.6) {
+                // Medium distance ducks (30% chance) - Moderate difficulty
+                distance = 4 + Math.random() * 4; // 4-8 meters
+                height = 1 + Math.random() * 4; // 1-5 meters
+                scale = 0.25 + Math.random() * 0.2; // 0.25-0.45 scale (medium)
+                glowRadius = 1.5 + Math.random() * 0.5; // Medium glow
+            } else {
+                // Far ducks (40% chance) - Hard targets
+                distance = 8 + Math.random() * 12; // 8-20 meters (very far!)
+                height = 2 + Math.random() * 8; // 2-10 meters (can be very high)
+                scale = 0.1 + Math.random() * 0.15; // 0.1-0.25 scale (tiny!)
+                glowRadius = 1 + Math.random() * 0.5; // Smaller glow
+            }
+            
+            // Random angle with some clustering to avoid too much spread
+            const angle = Math.random() * Math.PI * 2; // Full 360 degrees
+            
+            // Add some vertical randomness to make positioning more interesting
+            const verticalVariation = (Math.random() - 0.5) * 2; // -1 to +1 meter variation
+            height += verticalVariation;
+            height = Math.max(0.2, height); // Ensure minimum height above ground
 
             const x = Math.cos(angle) * distance;
             const y = height;
             const z = Math.sin(angle) * distance;
 
-            // Store original position for reference
-            duckPositions.set(duckId, { x, y, z });
+            // Store original position and properties for reference
+            duckPositions.set(duckId, { x, y, z, distance, scale });
 
-            // Set position in world coordinates (not relative to camera)
+            // Set position in world coordinates
             duck.setAttribute('position', `${x} ${y} ${z}`);
-            duck.setAttribute('scale', '0.3 0.3 0.3');
-            duck.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 6000');
-            duck.setAttribute('animation__float', `property: position; to: ${x} ${y + 0.2} ${z}; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine`);
+            duck.setAttribute('scale', `${scale} ${scale} ${scale}`);
+            
+            // Vary animation speeds based on distance (far ducks move slower)
+            const rotationSpeed = 4000 + Math.random() * 4000; // 4-8 seconds
+            const floatSpeed = 2000 + Math.random() * 3000; // 2-5 seconds
+            const floatAmount = 0.1 + Math.random() * 0.3; // Variable float distance
+            
+            duck.setAttribute('animation', `property: rotation; to: 0 360 0; loop: true; dur: ${rotationSpeed}`);
+            duck.setAttribute('animation__float', `property: position; to: ${x} ${y + floatAmount} ${z}; dir: alternate; loop: true; dur: ${floatSpeed}; easing: easeInOutSine`);
 
-            // Duck components - make it more visible
+            // Duck components with variable visibility based on distance
+            const bodyColor = distance > 10 ? "#ffff00" : "#ffeb3b"; // Far ducks are more golden
+            const glowOpacity = Math.max(0.15, 0.4 - (distance / 30)); // Dimmer glow for far ducks
+            
             duck.innerHTML = `
-                <a-sphere color="#ffeb3b" radius="1" position="0 0 0" scale="1 0.8 1.2"></a-sphere>
-                <a-sphere color="#ffeb3b" radius="0.6" position="0 0.7 0.3"></a-sphere>
+                <a-sphere color="${bodyColor}" radius="1" position="0 0 0" scale="1 0.8 1.2"></a-sphere>
+                <a-sphere color="${bodyColor}" radius="0.6" position="0 0.7 0.3"></a-sphere>
                 <a-cone color="#ff9800" radius-bottom="0.15" radius-top="0.05" height="0.3" position="0 0.7 0.8" rotation="90 0 0"></a-cone>
                 <a-sphere color="#000000" radius="0.08" position="-0.15 0.8 0.55"></a-sphere>
                 <a-sphere color="#000000" radius="0.08" position="0.15 0.8 0.55"></a-sphere>
-                <a-sphere color="#ffff00" radius="1.5" position="0 0 0" material="color: #ffff00; opacity: 0.2; transparent: true"></a-sphere>
+                <a-sphere color="#ffff00" radius="${glowRadius}" position="0 0 0" material="color: #ffff00; opacity: ${glowOpacity}; transparent: true"></a-sphere>
             `;
 
             // Add click handler
@@ -652,48 +688,81 @@
             document.getElementById('huntHint').style.display = 'block';
             document.getElementById('huntHint').textContent = `Duck #${duckCounter}: ${hint}`;
 
-            console.log(`Duck ${duckId} spawned at: ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)} - ${hint}`);
+            console.log(`Duck ${duckId} spawned: Pos(${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}) Dist:${distance.toFixed(1)}m Scale:${scale.toFixed(2)} - ${hint}`);
         }
 
         function generateHuntingHint(x, z, y, distance) {
             let direction = "";
             let heightHint = "";
             let distanceHint = "";
+            let sizeHint = "";
 
-            // Direction hint
-            if (Math.abs(x) > Math.abs(z)) {
-                direction = x > 0 ? "to your right" : "to your left";
+            // More precise direction hints
+            const angle = Math.atan2(x, -z) * 180 / Math.PI; // Convert to degrees
+            const normalizedAngle = (angle + 360) % 360;
+            
+            if (normalizedAngle < 22.5 || normalizedAngle >= 337.5) {
+                direction = "directly in front of you";
+            } else if (normalizedAngle < 67.5) {
+                direction = "in front and to your right";
+            } else if (normalizedAngle < 112.5) {
+                direction = "to your right";
+            } else if (normalizedAngle < 157.5) {
+                direction = "behind and to your right";
+            } else if (normalizedAngle < 202.5) {
+                direction = "directly behind you";
+            } else if (normalizedAngle < 247.5) {
+                direction = "behind and to your left";
+            } else if (normalizedAngle < 292.5) {
+                direction = "to your left";
             } else {
-                direction = z > 0 ? "behind you" : "in front of you";
+                direction = "in front and to your left";
             }
 
-            // Add diagonal hints for more precision
-            if (Math.abs(x) > 1 && Math.abs(z) > 1) {
-                if (x > 0 && z > 0) direction = "behind and to your right";
-                else if (x > 0 && z < 0) direction = "in front and to your right";
-                else if (x < 0 && z > 0) direction = "behind and to your left";
-                else if (x < 0 && z < 0) direction = "in front and to your left";
-            }
-
-            // Height hint
-            if (y < 2) {
+            // More detailed height hints
+            if (y < 1) {
+                heightHint = "Look down near the ground";
+            } else if (y < 2) {
                 heightHint = "Look down low";
-            } else if (y > 3) {
+            } else if (y < 3) {
+                heightHint = "Look at eye level";
+            } else if (y < 5) {
+                heightHint = "Look up moderately";
+            } else if (y < 7) {
                 heightHint = "Look up high";
             } else {
-                heightHint = "Look at eye level";
+                heightHint = "Look way up in the sky";
             }
 
-            // Distance hint
-            if (distance < 3) {
-                distanceHint = "It's close by";
-            } else if (distance > 4) {
-                distanceHint = "It's far away";
+            // More detailed distance hints with size clues
+            if (distance < 2) {
+                distanceHint = "Very close";
+                sizeHint = "It should appear large";
+            } else if (distance < 4) {
+                distanceHint = "Close by";
+                sizeHint = "It should be easy to spot";
+            } else if (distance < 8) {
+                distanceHint = "At medium distance";
+                sizeHint = "Look for a medium-sized duck";
+            } else if (distance < 15) {
+                distanceHint = "Far away";
+                sizeHint = "Look for a small duck";
             } else {
-                distanceHint = "It's at medium distance";
+                distanceHint = "Very far away";
+                sizeHint = "Look for a tiny speck";
             }
 
-            return `🎯 ${heightHint} ${direction}. ${distanceHint}. Listen for the quacking!`;
+            // Add difficulty indicator
+            let difficultyEmoji = "";
+            if (distance < 4 && y < 3) {
+                difficultyEmoji = "🟢"; // Easy
+            } else if (distance < 8 && y < 5) {
+                difficultyEmoji = "🟡"; // Medium
+            } else {
+                difficultyEmoji = "🔴"; // Hard
+            }
+
+            return `${difficultyEmoji} ${heightHint} ${direction}. ${distanceHint}. ${sizeHint}!`;
         }
 
         function collectDuck(duckId) {
